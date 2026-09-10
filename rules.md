@@ -1,32 +1,46 @@
-# Repository Rules
+# Project Rules
 
-## 1. Branches
-- Every member must work on their **own branch**.
-- Do not directly push changes to `main`.
-- Keep your branch focused on your assigned work.
+## 1. Development
+- All substantive work must be committed between 10–15 September.
+- Keep commits meaningful and related to actual development.
+- Do not copy public notebooks or repositories wholesale.
+- Open-source libraries, pretrained models, and public datasets are allowed.
+- Properly credit third-party code, models, and datasets used.
 
-## 2. Pull Requests
-- Create a **Pull Request (PR)** after completing your work.
-- Do not merge your own PR.
-- Every PR must be reviewed and approved by the **Admin**.
-- Address requested changes before approval.
-- Only the Admin should merge approved PRs into `main`.
+## 2. Git & Collaboration
+- Every member should work on their own branch.
+- Do not directly push development work to the main branch.
+- Create a Pull Request when your work is ready.
+- Only the admin/maintainer should merge Pull Requests after review.
+- Keep the repository clean, organized, and reproducible.
 
-## 3. Code & Changes
-- Keep code clean, readable, and maintainable.
-- Avoid unnecessary or unrelated changes.
-- Test your changes before creating a PR.
-- Communicate major changes that may affect other members.
+## 3. Data & ML
+- Do not use the held-out test set for training.
+- Maintain an honest train/validation/test split.
+- Any additional public dataset must be properly cited.
+- Avoid data leakage.
+- Report results honestly, including limitations and failure cases.
 
-## 4. ML & Experiments
-- Model selection must be based on appropriate evaluation and evidence.
-- Keep experiments reproducible.
-- Do not manipulate evaluation results or introduce data leakage.
-- Document important decisions and assumptions.
+## 4. Evaluation
+- The core system must classify images as Real or AI-generated.
+- Report ROC-AUC, Macro-F1, and a confusion matrix.
+- Report performance on the unseen-generator split.
+- Report accuracy and false-positive rate at the chosen threshold.
+- Do not manipulate or replace the official evaluation data.
 
-## 5. General
-- Do not commit secrets, credentials, or sensitive information.
-- Keep documentation consistent with the actual project.
-- Each member is responsible for understanding their contributions.
+## 5. Responsible AI
+- Present predictions as likelihoods, not absolute accusations.
+- Do not target, identify, or profile real individuals.
+- Do not make political or real-world event claims.
+- Explanations must be grounded in actual visual evidence.
+- Clearly communicate uncertainty and limitations.
 
-> **Branch → Work → PR → Admin Review → Admin Approval → Admin Merge**
+## 6. Reproducibility
+- Provide clear setup and execution instructions.
+- Ensure the core system can be reproduced from the repository.
+- Keep dependencies and required configurations documented.
+- The final repository should allow judges to run and verify the system.
+
+## 7. Documentation
+- Keep the README updated with the implemented modules, datasets, approach, metrics, limitations, and demo information.
+- Maintain an originality declaration for third-party code or references.
