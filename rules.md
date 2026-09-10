@@ -1,32 +1,65 @@
-# Repository Rules
+# Project Rules
 
-## 1. Branches
-- Every member must work on their **own branch**.
-- Do not directly push changes to `main`.
-- Keep your branch focused on your assigned work.
+## 1. Development
 
-## 2. Pull Requests
-- Create a **Pull Request (PR)** after completing your work.
-- Do not merge your own PR.
-- Every PR must be reviewed and approved by the **Admin**.
-- Address requested changes before approval.
-- Only the Admin should merge approved PRs into `main`.
+* All substantive project work must be committed between **10–15 September**.
+* Keep commits meaningful and related to actual development.
+* Do not copy public notebooks or repositories wholesale.
+* Open-source libraries, pretrained models, and public datasets are allowed.
+* Properly credit all third-party code, models, and datasets used.
 
-## 3. Code & Changes
-- Keep code clean, readable, and maintainable.
-- Avoid unnecessary or unrelated changes.
-- Test your changes before creating a PR.
-- Communicate major changes that may affect other members.
+## 2. Git & Collaboration
 
-## 4. ML & Experiments
-- Model selection must be based on appropriate evaluation and evidence.
-- Keep experiments reproducible.
-- Do not manipulate evaluation results or introduce data leakage.
-- Document important decisions and assumptions.
+* Every member must work on their **own branch**.
+* Do not directly push development work to the `main` branch.
+* Create a **Pull Request (PR)** when your work is ready.
+* Only the **admin/maintainer** can approve and merge Pull Requests after review.
+* Keep the repository clean, organized, and reproducible.
 
-## 5. General
-- Do not commit secrets, credentials, or sensitive information.
-- Keep documentation consistent with the actual project.
-- Each member is responsible for understanding their contributions.
+## 3. Data & ML
 
-> **Branch → Work → PR → Admin Review → Admin Approval → Admin Merge**
+* Do not use the **held-out test set** for training.
+* Maintain an honest **train/validation/test split**.
+* Properly cite any additional public datasets.
+* Avoid data leakage.
+* Report results honestly, including limitations and failure cases.
+
+## 4. Evaluation
+
+* The core system must classify images as **Real** or **AI-generated**.
+* Report:
+
+  * **ROC-AUC**
+  * **Macro-F1**
+  * **Confusion Matrix**
+  * Performance on the **unseen-generator split**
+  * **Accuracy**
+  * **False-positive rate (FPR)** at the chosen threshold
+* Do not manipulate, replace, or selectively modify the official evaluation data.
+
+## 5. Responsible AI
+
+* Present predictions as **likelihoods**, not absolute accusations.
+* Do not target, identify, or profile real individuals.
+* Do not make political or real-world event claims.
+* Explanations must be grounded in actual visual evidence.
+* Clearly communicate uncertainty and system limitations.
+
+## 6. Reproducibility
+
+* Provide clear setup and execution instructions.
+* Ensure the core system can be reproduced from the repository.
+* Keep dependencies and required configurations documented.
+* The final repository must allow judges to run and verify the system.
+
+## 7. Documentation
+
+* Keep the `README.md` updated with:
+
+  * Implemented modules
+  * Datasets
+  * Approach
+  * Evaluation metrics
+  * Limitations
+  * Demo information
+* Maintain an **originality declaration** covering third-party code, models, datasets, and references used.
