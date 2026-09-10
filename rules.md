@@ -1,65 +1,86 @@
 # Project Rules
 
-## 1. Development
+## 1. General Development
 
-* All substantive project work must be committed between **10–15 September**.
-* Keep commits meaningful and related to actual development.
-* Do not copy public notebooks or repositories wholesale.
-* Open-source libraries, pretrained models, and public datasets are allowed.
-* Properly credit all third-party code, models, and datasets used.
+- All team members must contribute meaningful work to the project.
+- Keep work within the defined project timeline.
+- Do not copy complete projects, repositories, or notebooks from others.
+- Open-source tools, libraries, models, and resources may be used when permitted.
+- Properly credit any third-party resources used.
+- Test your work before submitting it for review.
+- Keep the code and project files clean and maintainable.
 
-## 2. Git & Collaboration
+## 2. Git & Branching
 
-* Every member must work on their **own branch**.
-* Do not directly push development work to the `main` branch.
-* Create a **Pull Request (PR)** when your work is ready.
-* Only the **admin/maintainer** can approve and merge Pull Requests after review.
-* Keep the repository clean, organized, and reproducible.
+- Every member must work on their **own branch**.
+- Do not directly push development work to the `main` branch.
+- Keep your branch updated with the latest changes when necessary.
+- Make commits regularly with clear and meaningful messages.
+- Keep commits focused on the work being done.
+- Do not commit unnecessary, temporary, or generated files.
 
-## 3. Data & ML
+## 3. Pull Requests
 
-* Do not use the **held-out test set** for training.
-* Maintain an honest **train/validation/test split**.
-* Properly cite any additional public datasets.
-* Avoid data leakage.
-* Report results honestly, including limitations and failure cases.
+- Create a **Pull Request (PR)** when your work is ready to be added to the main project.
+- Clearly describe what was changed in the PR.
+- Test your changes before creating a PR.
+- PRs must be reviewed before merging.
+- Only the **admin/maintainer** can approve and merge PRs.
+- Resolve conflicts and review feedback before merging.
+- Do not merge your own PR without admin approval.
 
-## 4. Evaluation
+## 4. Collaboration
 
-* The core system must classify images as **Real** or **AI-generated**.
-* Report:
+- Communicate with relevant team members before making changes that affect their work.
+- Avoid duplicating work already assigned to another member.
+- Clearly communicate dependencies, blockers, and major changes.
+- Share important technical decisions with the team.
+- Do not overwrite or remove another member's work without discussion.
+- Keep shared files and documentation updated when your work changes them.
 
-  * **ROC-AUC**
-  * **Macro-F1**
-  * **Confusion Matrix**
-  * Performance on the **unseen-generator split**
-  * **Accuracy**
-  * **False-positive rate (FPR)** at the chosen threshold
-* Do not manipulate, replace, or selectively modify the official evaluation data.
+## 5. Data & Resources
 
-## 5. Responsible AI
+- Use only permitted and properly sourced data and resources.
+- Do not use restricted, private, or unauthorized data.
+- Keep track of the source and licence of external datasets and resources.
+- Do not introduce data leakage or intentionally manipulate data to obtain better results.
+- Do not use evaluation data improperly.
 
-* Present predictions as **likelihoods**, not absolute accusations.
-* Do not target, identify, or profile real individuals.
-* Do not make political or real-world event claims.
-* Explanations must be grounded in actual visual evidence.
-* Clearly communicate uncertainty and system limitations.
+## 6. Code Quality
 
-## 6. Reproducibility
+- Write understandable and maintainable code.
+- Use clear names for files, variables, functions, and components.
+- Avoid unnecessary duplication.
+- Keep configuration and dependencies documented.
+- Remove debugging code and unnecessary files before creating a PR.
+- Make changes in a way that does not unnecessarily break existing functionality.
 
-* Provide clear setup and execution instructions.
-* Ensure the core system can be reproduced from the repository.
-* Keep dependencies and required configurations documented.
-* The final repository must allow judges to run and verify the system.
+## 7. Testing & Validation
 
-## 7. Documentation
+- Test changes before submitting them for review.
+- Do not claim functionality or results that have not been verified.
+- Re-check existing functionality after making major changes.
+- Report errors, failures, and limitations honestly.
+- Do not modify results or evaluation procedures just to improve reported performance.
 
-* Keep the `README.md` updated with:
+## 8. Documentation
 
-  * Implemented modules
-  * Datasets
-  * Approach
-  * Evaluation metrics
-  * Limitations
-  * Demo information
-* Maintain an **originality declaration** covering third-party code, models, datasets, and references used.
+- Document important decisions, procedures, and changes.
+- Keep the main project documentation updated.
+- Document external resources, datasets, libraries, and references when used.
+- Ensure another team member can understand and continue your work when necessary.
+
+## 9. Security & Responsible Use
+
+- Do not commit passwords, API keys, tokens, or other secrets.
+- Do not expose private or sensitive information.
+- Follow the ethical and usage requirements of the project.
+- Do not build or use features outside the permitted scope of the project.
+
+## 10. Project Integrity
+
+- All submitted work must be original or properly attributed.
+- Do not intentionally misrepresent contributions, results, or project capabilities.
+- Do not remove evidence of previous work or manipulate commit history to misrepresent development.
+- Follow the official problem statement and competition requirements.
+- When in doubt about a major change, discuss it with the team before implementing it.
