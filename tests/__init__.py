@@ -1,0 +1,3 @@
+"""
+SignalScope Test Suite Package
+"""

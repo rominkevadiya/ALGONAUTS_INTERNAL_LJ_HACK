@@ -1,0 +1,20 @@
+Metric,Value
+Test Loss,0.057311255031265315
+Accuracy,0.97865
+Precision (Macro),0.9786500047865001
+Recall (Macro),0.97865
+F1 Score (Macro),0.9786499999466249
+Precision (Weighted),0.9786500047865
+Recall (Weighted),0.97865
+F1 Score (Weighted),0.978649999946625
+Macro F1 Score,0.9786499999466249
+Balanced Accuracy,0.97865
+ROC-AUC,0.9979923299999999
+PR-AUC,0.9980716529788624
+Sensitivity / Recall,0.9787
+Specificity,0.9786
+Matthews Correlation Coefficient,0.9573000047865
+Cohen's Kappa,0.9573
+Average Confidence,0.9823275208473206
+Inference Time (seconds),69.57212901115417
+Inference Speed (images/sec),287.471438408813
