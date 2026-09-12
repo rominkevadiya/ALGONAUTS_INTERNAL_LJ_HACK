@@ -18,23 +18,25 @@ The frontend interface (`app/app.py`) is built using **Streamlit 1.63+**.
 
 ## 2. Step-by-Step Inference Pipeline
 
-Every input image undergoes the following 15-step inference sequence:
+Every input image undergoes the following 14-step inference sequence:
 
 1. **File Upload**: Image stream received via Streamlit file uploader.
 2. **File Validation**: `uploaded_file.seek(0)` resets byte stream pointer.
 3. **PIL Decoding**: `Image.open(uploaded_file)` decodes image file.
 4. **EXIF Correction**: `ImageOps.exif_transpose(image)` auto-rotates camera metadata tags.
 5. **RGB Standardization**: `image.convert("RGB")` converts Grayscale or RGBA images to 3-channel RGB.
-6. **Spatial Resize**: `transforms.Resize((224, 224))` resizes image tensor.
+6. **Spatial Resize**: `transforms.Resize((224, 224))` resizes image to fixed spatial dimensions.
 7. **Tensor Conversion**: `transforms.ToTensor()` scales pixel values $[0, 255] \rightarrow [0.0, 1.0]$.
 8. **Normalization**: `transforms.Normalize()` applies ImageNet Z-scores ($\text{mean}=[0.485, 0.456, 0.406]$, $\text{std}=[0.229, 0.224, 0.225]$).
 9. **Batch Dimension**: `.unsqueeze(0)` shapes tensor to $(1, 3, 224, 224)$.
 10. **Device Transfer**: `.to(device)` transfers tensor to CPU or CUDA GPU memory.
-11. **Evaluation Mode**: Model set to `model.eval()`.
-12. **Inference Context**: Forward pass executed inside `with torch.no_grad():`.
-13. **Forward Pass**: Model outputs raw logits $z_0$ (FAKE) and $z_1$ (REAL).
-14. **Softmax Activation**: `F.softmax(logits, dim=1)` calculates class probabilities $P_0$ and $P_1$.
-15. **Prediction Format**: Returns structured dictionary containing label, confidence, and class probabilities.
+11. **Inference Context**: Forward pass executed inside `with torch.no_grad():`.
+12. **Forward Pass**: Model outputs raw logits $z_0$ (FAKE) and $z_1$ (REAL).
+13. **Softmax Activation**: `F.softmax(logits, dim=1)` calculates class probabilities $P_0$ and $P_1$.
+14. **Prediction Format**: Returns structured dictionary containing label, confidence, and class probabilities.
+
+> [!NOTE]
+> `model.eval()` is set **once** at checkpoint load time, not per request. Batch inference via `predict_batch()` processes images sequentially (one forward pass per image).
 
 ---
 
@@ -80,7 +82,7 @@ pytest tests/test_predictor.py -v
 
 ### `app/model_loader.py`
 - `get_device() -> torch.device`: Returns `cuda` if available, else `cpu`.
-- `load_model(model_path=None) -> tuple[nn.Module, torch.device]`: Loads ResNet-50 with 2 output classes, restores weights, sets `eval()` mode, and caches model via `@st.cache_resource`.
+- `load_model(model_path=None) -> tuple[nn.Module, torch.device]`: Instantiates ResNet-50, auto-detects checkpoint stem variant (standard `7×7` vs CIFAR-adapted `3×3`), restores weights, sets `eval()` mode, and caches model via `@st.cache_resource` (Streamlit) or module-level dict (tests/scripts).
 
 ### `app/predictor.py`
 - `preprocess_image(image: Image.Image) -> torch.Tensor`: Preprocesses image into tensor shape `(1, 3, 224, 224)`.

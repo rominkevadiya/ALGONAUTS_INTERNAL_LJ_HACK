@@ -11,13 +11,16 @@ SignalScope includes an automated test suite in [`tests/test_predictor.py`](../t
 
 ### Verification Results (8 / 8 Passed):
 - `test_get_device`: PASS (Valid device detection)
-- `test_model_loading`: PASS (ResNet-50 architecture & 2-class head)
+- `test_model_loading`: PASS (ResNet-50 architecture & 2-class head, verified `eval()` mode)
 - `test_preprocess_rgb_image`: PASS (Shape `(1, 3, 224, 224)`)
 - `test_preprocess_grayscale_image`: PASS (Mode L auto-conversion)
 - `test_preprocess_rgba_image`: PASS (RGBA 4-channel auto-conversion)
-- `test_predict_image_output_structure`: PASS (Output keys & $P_0+P_1=1.0$)
+- `test_predict_image_output_structure`: PASS (Output keys & probability bounds)
 - `test_predict_batch`: PASS (Batch DataFrame generation)
 - `test_invalid_input_handling`: PASS (Catches invalid input types)
+
+> [!WARNING]
+> **Known Minor Bug (`test_predict_image_output_structure`, line 100):** The probability sum assertion is written as `pytest.approx(fake_p + real_p, abs=1e-4) == 1.0` which evaluates but never actually asserts — it should be `assert fake_p + real_p == pytest.approx(1.0, abs=1e-4)`. The test passes, but the probability-sum check is vacuous. All other assertions in the test are correct.
 
 ### Manual Verification Cases
 1. **RGB Image (300×300)**: PASS ($\rightarrow$ REAL, 97.11% confidence)

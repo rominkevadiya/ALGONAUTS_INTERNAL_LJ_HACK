@@ -52,6 +52,7 @@ This mapping is verified by checkpoint metadata: `class_to_idx: {'FAKE': 0, 'REA
 
 ### Checkpoint Metadata & Serialization
 - **Checkpoint Location**: `model/best_resnet50_cifake_native32.pth`
-- **Exact File Size**: **90.00 MB** (`94,370,893 bytes`)
+- **Exact File Size**: **~90 MB** (`94,343,171 bytes`)
 - **Top-Level Checkpoint Keys**: `['model_state_dict', 'class_names', 'class_to_idx', 'img_size']`
 - **Optimizer & Loss**: Trained using `AdamW` (learning rate $1 \times 10^{-4}$, weight decay $1 \times 10^{-4}$) and `CrossEntropyLoss`.
+- **CIFAR-Adapted Stem**: Uses `Conv2d(3, 64, kernel_size=3, stride=1, padding=1)` and `nn.Identity()` maxpool instead of the standard ImageNet `7×7` stem, matched automatically by `model_loader.py`.
