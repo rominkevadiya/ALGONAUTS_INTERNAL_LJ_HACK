@@ -4,7 +4,7 @@
 
 SignalScope is organized into decoupled Python modules:
 
-- **`app/config.py`**: Central configuration storing model path (`model/best_resnet50_cifake.pth`), ImageNet normalization mean/std, spatial input dimensions (`224, 224`), class mapping (`0: FAKE`, `1: REAL`), and benchmark metrics constants.
+- **`app/config.py`**: Central configuration storing model path (`model/best_resnet50_cifake_native32.pth`), ImageNet normalization mean/std, spatial input dimensions (`224, 224`), class mapping (`0: FAKE`, `1: REAL`), and benchmark metrics constants.
 - **`app/model_loader.py`**: Handles device selection (`cuda` vs `cpu`), instantiates `torchvision.models.resnet50(weights=None)`, replaces the final layer with `Linear(2048, 2)`, restores weight tensors, and caches the model using Streamlit's `@st.cache_resource`.
 - **`app/predictor.py`**: Handles image preprocessing (EXIF correction, RGB conversion, $224 \times 224$ resize, ImageNet normalization), runs inference inside `torch.no_grad()`, computes Softmax probabilities, and processes single & batch predictions.
 - **`app/app.py`**: Streamlit web dashboard managing UI rendering, single/batch upload tabs, live diagnostic logits expanders, and CSV downloads.
@@ -36,7 +36,7 @@ SignalScope is organized into decoupled Python modules:
 graph TD
     User["User Upload (JPG / PNG)"] --> UI["Streamlit Interface (app/app.py)"]
     UI --> Loader["Model Loader (app/model_loader.py)"]
-    Loader --> Checkpoint["Checkpoint File (model/best_resnet50_cifake.pth)"]
+    Loader --> Checkpoint["Checkpoint File (model/best_resnet50_cifake_native32.pth)"]
     UI --> Predictor["Prediction Engine (app/predictor.py)"]
     Predictor --> Preproc["Preprocessing (RGB, Resize 224x224, Normalize)"]
     Preproc --> Forward["ResNet-50 Forward Pass (eval mode)"]

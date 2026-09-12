@@ -6,7 +6,11 @@ from pathlib import Path
 
 # Base Paths
 BASE_DIR = Path(__file__).resolve().parent.parent
-MODEL_PATH = BASE_DIR / "model" / "best_resnet50_cifake.pth"
+MODEL_PATH = BASE_DIR / "model" / "best_resnet50_cifake_native32.pth"
+if not MODEL_PATH.exists():
+    _fallback = BASE_DIR / "model" / "best_resnet50_cifake.pth"
+    if _fallback.exists():
+        MODEL_PATH = _fallback
 EVALUATION_DIR = BASE_DIR / "evaluation"
 OUTPUTS_DIR = BASE_DIR / "outputs"
 

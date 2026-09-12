@@ -34,15 +34,10 @@ def _load_model_impl(target_path: Path) -> tuple[nn.Module, torch.device]:
     if not target_path.exists():
         raise FileNotFoundError(
             f"Model checkpoint file not found at: {target_path}. "
-            "Please ensure 'best_resnet50_cifake.pth' exists in the model directory."
+            "Please ensure 'best_resnet50_cifake_native32.pth' exists in the model directory."
         )
 
     device = get_device()
-
-    # Instantiate ResNet-50 without downloading pretrained weights
-    model = models.resnet50(weights=None)
-    in_features = model.fc.in_features
-    model.fc = nn.Linear(in_features, NUM_CLASSES)
 
     try:
         checkpoint = torch.load(target_path, map_location=device)
@@ -58,10 +53,20 @@ def _load_model_impl(target_path: Path) -> tuple[nn.Module, torch.device]:
         elif "state_dict" in checkpoint:
             state_dict = checkpoint["state_dict"]
         else:
-            # Assume dictionary itself is the state_dict
             state_dict = checkpoint
     else:
         state_dict = checkpoint
+
+    # Instantiate ResNet-50 without downloading pretrained weights
+    model = models.resnet50(weights=None)
+
+    # Detect if checkpoint uses native 32x32 CIFAR adapted stem (3x3 conv1, Identity maxpool)
+    if "conv1.weight" in state_dict and state_dict["conv1.weight"].shape == torch.Size([64, 3, 3, 3]):
+        model.conv1 = nn.Conv2d(3, 64, kernel_size=3, stride=1, padding=1, bias=False)
+        model.maxpool = nn.Identity()
+
+    in_features = model.fc.in_features
+    model.fc = nn.Linear(in_features, NUM_CLASSES)
 
     try:
         model.load_state_dict(state_dict)

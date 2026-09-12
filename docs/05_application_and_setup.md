@@ -72,7 +72,7 @@ pytest tests/test_predictor.py -v
 ## 4. Module API Reference
 
 ### `app/config.py`
-- `MODEL_PATH`: `Path` to `model/best_resnet50_cifake.pth`.
+- `MODEL_PATH`: `Path` to `model/best_resnet50_cifake_native32.pth`.
 - `CLASS_MAPPING`: `{0: "FAKE", 1: "REAL"}`.
 - `IMAGE_SIZE`: `(224, 224)`.
 - `IMAGENET_MEAN` / `IMAGENET_STD`: Standard normalization vectors.

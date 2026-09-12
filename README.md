@@ -51,7 +51,7 @@ The performance below was evaluated on the official **CIFAKE test dataset** (20,
 ALGONAUTS_INTERNAL_LJ_HACK-main/
 │
 ├── model/
-│   └── best_resnet50_cifake.pth       # Trained PyTorch ResNet-50 checkpoint (~94.3 MB)
+│   └── best_resnet50_cifake_native32.pth # Trained PyTorch ResNet-50 checkpoint (~94.3 MB)
 │
 ├── evaluation/
 │   ├── final_evaluation_metrics.csv   # Numerical test metrics export
