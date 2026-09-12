@@ -97,7 +97,7 @@ def test_predict_image_output_structure(loaded_model_fixture):
     assert 0.0 <= conf <= 1.0
 
     # Sum of probabilities approximately 1.0
-    pytest.approx(fake_p + real_p, abs=1e-4) == 1.0
+    assert (fake_p + real_p) == pytest.approx(1.0, abs=1e-4)
 
     # Confidence matches the predicted label probability
     if result["label"] == "FAKE":

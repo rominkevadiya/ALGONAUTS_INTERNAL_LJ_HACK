@@ -17,7 +17,8 @@ try:
         IMAGENET_STD,
         CLASS_MAPPING,
         HIGH_CONFIDENCE_THRESHOLD,
-        MODERATE_CONFIDENCE_THRESHOLD
+        MODERATE_CONFIDENCE_THRESHOLD,
+        REVIEW_THRESHOLD
     )
     from app.model_loader import load_model, get_device
 except (ImportError, ModuleNotFoundError):
@@ -27,7 +28,8 @@ except (ImportError, ModuleNotFoundError):
         IMAGENET_STD,
         CLASS_MAPPING,
         HIGH_CONFIDENCE_THRESHOLD,
-        MODERATE_CONFIDENCE_THRESHOLD
+        MODERATE_CONFIDENCE_THRESHOLD,
+        REVIEW_THRESHOLD
     )
     from model_loader import load_model, get_device
 
@@ -75,11 +77,23 @@ def preprocess_image(image: Image.Image) -> torch.Tensor:
 def interpret_confidence(confidence: float) -> Dict[str, str]:
     """
     Categorizes model confidence score into intuitive levels for UI display.
+    Below REVIEW_THRESHOLD (0.70): flagged as 'Uncertain – Review Recommended'.
+    Derived from test_predictions.csv threshold analysis:
+      conf >= 0.70 -> 98.30% accuracy on retained predictions.
     """
-    if confidence >= HIGH_CONFIDENCE_THRESHOLD:
+    if confidence < REVIEW_THRESHOLD:
+        return {
+            "level": "Uncertain – Review Recommended",
+            "status": "warning",
+            "message": (
+                f"Confidence ({confidence * 100:.1f}%) is below the review threshold ({REVIEW_THRESHOLD:.0%}). "
+                "Prediction may be unreliable. Manual inspection recommended."
+            )
+        }
+    elif confidence >= HIGH_CONFIDENCE_THRESHOLD:
         return {
             "level": "High Confidence",
-            "status": "success" if confidence >= HIGH_CONFIDENCE_THRESHOLD else "warning",
+            "status": "success",
             "message": "Model is highly confident in this prediction."
         }
     elif confidence >= MODERATE_CONFIDENCE_THRESHOLD:
@@ -90,7 +104,7 @@ def interpret_confidence(confidence: float) -> Dict[str, str]:
         }
     else:
         return {
-            "level": "Low Confidence / Review Recommended",
+            "level": "Low Confidence",
             "status": "warning",
             "message": "Prediction score is near the decision boundary. Verification recommended."
         }
