@@ -43,9 +43,9 @@ BENCHMARK_METRICS = {
     "Dataset": "CIFAKE",
     "Input Size": "224 x 224",
     "Classes": "FAKE, REAL",
-    "Test Accuracy": "97.87%",
-    "Macro F1 Score": "0.9786",
-    "ROC-AUC": "0.9980",
-    "PR-AUC": "0.9981",
-    "Inference Speed": "~287 img/sec (GPU Batch, Tesla T4)"
+    "Test Accuracy": "97.42%",
+    "Macro F1 Score": "0.9741",
+    "ROC-AUC": "0.9964",
+    "PR-AUC": "0.9966",
+    "Inference Speed": "~1092 img/sec (GPU Batch)"
 }

@@ -8,8 +8,13 @@ import sys
 import time
 from pathlib import Path
 
-# Ensure project root directory is in sys.path for Streamlit execution
+# Ensure project root directory is first in sys.path and remove script directory to avoid name collision with app package
 ROOT_DIR = Path(__file__).resolve().parent.parent
+SCRIPT_DIR = Path(__file__).resolve().parent
+
+while str(SCRIPT_DIR) in sys.path:
+    sys.path.remove(str(SCRIPT_DIR))
+
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
@@ -19,14 +24,23 @@ import streamlit as st
 import torch
 import torch.nn.functional as F
 
-# Custom imports from app package
-from app.config import (
-    BENCHMARK_METRICS,
-    DISCLAIMER_TEXT,
-    CONFIDENCE_DISCLAIMER
-)
-from app.model_loader import load_model
-from app.predictor import predict_image, predict_batch, preprocess_image
+# Custom imports from app package (handles direct script execution vs package import)
+try:
+    from app.config import (
+        BENCHMARK_METRICS,
+        DISCLAIMER_TEXT,
+        CONFIDENCE_DISCLAIMER
+    )
+    from app.model_loader import load_model
+    from app.predictor import predict_image, predict_batch, preprocess_image
+except (ModuleNotFoundError, ImportError):
+    from config import (
+        BENCHMARK_METRICS,
+        DISCLAIMER_TEXT,
+        CONFIDENCE_DISCLAIMER
+    )
+    from model_loader import load_model
+    from predictor import predict_image, predict_batch, preprocess_image
 
 # Page configuration
 st.set_page_config(
@@ -357,14 +371,14 @@ def main():
 
         m_col1, m_col2, m_col3 = st.columns(3)
         with m_col1:
-            st.metric("Test Accuracy", "97.87%")
-            st.metric("Macro F1 Score", "0.9786")
+            st.metric("Test Accuracy", "97.42%")
+            st.metric("Macro F1 Score", "0.9741")
         with m_col2:
-            st.metric("ROC-AUC", "0.9980")
-            st.metric("PR-AUC", "0.9981")
+            st.metric("ROC-AUC", "0.9964")
+            st.metric("PR-AUC", "0.9966")
         with m_col3:
-            st.metric("Sensitivity", "97.87%")
-            st.metric("Specificity", "97.86%")
+            st.metric("Sensitivity", "97.00%")
+            st.metric("Specificity", "97.83%")
 
         # Display evaluation plots if available
         outputs_dir = Path(__file__).resolve().parent.parent / "outputs"

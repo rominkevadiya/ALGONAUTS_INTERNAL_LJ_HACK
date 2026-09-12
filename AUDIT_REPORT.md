@@ -39,7 +39,7 @@ A comprehensive, forensic, and empirical technical audit of the **SignalScope** 
 | [`outputs/precision_recall_curve.png`](file:///d:/ALGONAUTS_INTERNAL_LJ_HACK-main/outputs/precision_recall_curve.png) | PNG Image | Active (Tab 3 UI) | Visualization | **VERIFIED** (PR curve plot) |
 | [`outputs/training_validation_accuracy.png`](file:///d:/ALGONAUTS_INTERNAL_LJ_HACK-main/outputs/training_validation_accuracy.png) | PNG Image | Active (Tab 3 UI) | Visualization | **VERIFIED** (Training/Val accuracy curve) |
 | [`outputs/training_validation_loss.png`](file:///d:/ALGONAUTS_INTERNAL_LJ_HACK-main/outputs/training_validation_loss.png) | PNG Image | Active (Tab 3 UI) | Visualization | **VERIFIED** (Training/Val loss curve) |
-| [`notebook/SignalScope_CIFAKE_ResNet50_Training.ipynb`](file:///d:/ALGONAUTS_INTERNAL_LJ_HACK-main/notebook/SignalScope_CIFAKE_ResNet50_Training.ipynb) | Jupyter Notebook | Unused (Reference) | Training | **VERIFIED** (5-epoch Google Colab training notebook) |
+| [`notebook/SignalScope_CIFAKE_ResNet50_Native32.ipynb`](file:///d:/ALGONAUTS_INTERNAL_LJ_HACK-main/notebook/SignalScope_CIFAKE_ResNet50_Native32.ipynb) | Jupyter Notebook | Unused (Reference) | Training | **VERIFIED** (Google Colab training notebook) |
 | [`requirements.txt`](file:///d:/ALGONAUTS_INTERNAL_LJ_HACK-main/requirements.txt) | Dependency File | External | Environment | **VERIFIED** (Pip requirements) |
 | [`README.md`](file:///d:/ALGONAUTS_INTERNAL_LJ_HACK-main/README.md) | Markdown Doc | Documentation | Docs | **VERIFIED** (Project overview & guide) |
 | [`rules.md`](file:///d:/ALGONAUTS_INTERNAL_LJ_HACK-main/rules.md) | Markdown Doc | Documentation | Governance | **VERIFIED** (Team hackathon guidelines) |

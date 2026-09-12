@@ -32,13 +32,13 @@ The performance below was evaluated on the official **CIFAKE test dataset** (20,
 
 | Metric | Value |
 | :--- | :---: |
-| **Test Accuracy** | **97.87%** |
-| **Macro F1-Score** | **0.9786** |
-| **ROC-AUC** | **0.9980** |
-| **PR-AUC** | **0.9981** |
-| **Sensitivity (Recall)** | **97.87%** |
-| **Specificity** | **97.86%** |
-| **Inference Speed** | **~287 img/sec (GPU Batch Inference, Tesla T4)** |
+| **Test Accuracy** | **97.42%** |
+| **Macro F1-Score** | **0.9741** |
+| **ROC-AUC** | **0.9964** |
+| **PR-AUC** | **0.9966** |
+| **Sensitivity (Recall)** | **97.00%** |
+| **Specificity** | **97.83%** |
+| **Inference Speed** | **~1092 img/sec (GPU Batch Inference)** |
 
 > [!WARNING]
 > **Dataset Domain Limitation**: This model was trained strictly on the **CIFAKE dataset** ($32 \times 32$ CIFAR-10 images upscaled to $224 \times 224$). High-resolution digital camera photographs or modern webcam photos possess different spatial frequency characteristics than CIFAR-10 real photos, which can cause modern webcam photos to trigger high `FAKE` activations due to dataset domain shift.
@@ -76,7 +76,7 @@ ALGONAUTS_INTERNAL_LJ_HACK-main/
 │   └── test_predictor.py              # Pytest unit tests
 │
 ├── notebook/
-│   └── SignalScope_CIFAKE_ResNet50_Training.ipynb # Original Colab training notebook
+│   └── SignalScope_CIFAKE_ResNet50_Native32.ipynb # Training & evaluation notebook
 │
 ├── .venv/                             # Local Python virtual environment
 ├── requirements.txt                   # Dependency list

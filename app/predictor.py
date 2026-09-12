@@ -10,15 +10,26 @@ import torch.nn.functional as F
 from torchvision import transforms
 import pandas as pd
 
-from app.config import (
-    IMAGE_SIZE,
-    IMAGENET_MEAN,
-    IMAGENET_STD,
-    CLASS_MAPPING,
-    HIGH_CONFIDENCE_THRESHOLD,
-    MODERATE_CONFIDENCE_THRESHOLD
-)
-from app.model_loader import load_model, get_device
+try:
+    from app.config import (
+        IMAGE_SIZE,
+        IMAGENET_MEAN,
+        IMAGENET_STD,
+        CLASS_MAPPING,
+        HIGH_CONFIDENCE_THRESHOLD,
+        MODERATE_CONFIDENCE_THRESHOLD
+    )
+    from app.model_loader import load_model, get_device
+except (ImportError, ModuleNotFoundError):
+    from config import (
+        IMAGE_SIZE,
+        IMAGENET_MEAN,
+        IMAGENET_STD,
+        CLASS_MAPPING,
+        HIGH_CONFIDENCE_THRESHOLD,
+        MODERATE_CONFIDENCE_THRESHOLD
+    )
+    from model_loader import load_model, get_device
 
 
 def get_inference_transform() -> transforms.Compose:

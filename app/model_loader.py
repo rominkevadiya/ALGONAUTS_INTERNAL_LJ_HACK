@@ -9,7 +9,10 @@ import torch
 import torch.nn as nn
 from torchvision import models
 
-from app.config import MODEL_PATH, NUM_CLASSES
+try:
+    from app.config import MODEL_PATH, NUM_CLASSES
+except (ImportError, ModuleNotFoundError):
+    from config import MODEL_PATH, NUM_CLASSES
 
 # Global cache for non-Streamlit environments (e.g. CLI/tests)
 _LOADED_MODEL_CACHE = {}
