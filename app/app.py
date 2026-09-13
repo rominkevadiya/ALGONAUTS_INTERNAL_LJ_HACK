@@ -346,171 +346,171 @@ def main():
                         
                         elapsed_ms = (time.time() - start_t) * 1000
 
-                    label = res["label"]
-                    conf = res["confidence"]
-                    fake_prob = res["fake_probability"]
-                    real_prob = res["real_probability"]
-                    active_mode = res.get("inference_mode", selected_mode_key)
+                label = res["label"]
+                conf = res["confidence"]
+                fake_prob = res["fake_probability"]
+                real_prob = res["real_probability"]
+                active_mode = res.get("inference_mode", selected_mode_key)
 
-                    # Status Box Rendering
-                    if active_mode == "metadata_provenance":
-                        box_class = "result-box-fake"
-                        badge_text = "🤖 AI-GENERATED (C2PA / METADATA VERIFIED)"
-                    elif conf < 0.70:
-                        box_class = "result-box-warning"
-                        badge_text = "⚠️ LOW CONFIDENCE - REVIEW RECOMMENDED"
-                    elif label == "FAKE":
-                        box_class = "result-box-fake"
-                        badge_text = "🤖 AI-GENERATED (FAKE)"
-                    else:
-                        box_class = "result-box-real"
-                        badge_text = "📸 REAL PHOTOGRAPH"
+                # Status Box Rendering
+                if active_mode == "metadata_provenance":
+                    box_class = "result-box-fake"
+                    badge_text = "🤖 AI-GENERATED (C2PA / METADATA VERIFIED)"
+                elif conf < 0.70:
+                    box_class = "result-box-warning"
+                    badge_text = "⚠️ LOW CONFIDENCE - REVIEW RECOMMENDED"
+                elif label == "FAKE":
+                    box_class = "result-box-fake"
+                    badge_text = "🤖 AI-GENERATED (FAKE)"
+                else:
+                    box_class = "result-box-real"
+                    badge_text = "📸 REAL PHOTOGRAPH"
 
-                    st.markdown(f"""
-                    <div class="{box_class}">
-                        <div class="result-label">{badge_text}</div>
-                        <div class="result-subtext">Confidence Score: {conf * 100:.2f}% | Mode: {active_mode.upper()}</div>
-                    </div>
-                    """, unsafe_allow_html=True)
+                st.markdown(f"""
+                <div class="{box_class}">
+                    <div class="result-label">{badge_text}</div>
+                    <div class="result-subtext">Confidence Score: {conf * 100:.2f}% | Mode: {active_mode.upper()}</div>
+                </div>
+                """, unsafe_allow_html=True)
 
-                    if active_mode == "metadata_provenance":
-                        st.info(f"⚡ **Short-Circuit Notice:** Verified AI digital metadata detected (`{res['agreement']}`). Deep learning neural network forward pass bypassed.")
+                if active_mode == "metadata_provenance":
+                    st.info(f"⚡ **Short-Circuit Notice:** Verified AI digital metadata detected (`{res['agreement']}`). Deep learning neural network forward pass bypassed.")
 
-                    st.markdown("<br>", unsafe_allow_html=True)
-                    st.subheader("📈 Classification Probabilities")
-                    
-                    col_p1, col_p2 = st.columns(2)
-                    with col_p1:
-                        st.metric("Fake Probability", f"{fake_prob * 100:.2f}%")
-                        st.progress(fake_prob)
-                    with col_p2:
-                        st.metric("Real Probability", f"{real_prob * 100:.2f}%")
-                        st.progress(real_prob)
+                st.markdown("<br>", unsafe_allow_html=True)
+                st.subheader("📈 Classification Probabilities")
+                
+                col_p1, col_p2 = st.columns(2)
+                with col_p1:
+                    st.metric("Fake Probability", f"{fake_prob * 100:.2f}%")
+                    st.progress(fake_prob)
+                with col_p2:
+                    st.metric("Real Probability", f"{real_prob * 100:.2f}%")
+                    st.progress(real_prob)
 
-                    # Disclaimer
-                    st.caption("🛡️ Confidence reflects model certainty under the selected strategy, not an absolute guarantee.")
+                # Disclaimer
+                st.caption("🛡️ Confidence reflects model certainty under the selected strategy, not an absolute guarantee.")
 
-                    # --------------------------------------------------
-                    # Diagnostics Expander
-                    # --------------------------------------------------
-                    with st.expander("🔬 Comprehensive Diagnostics & Stability Analysis", expanded=True):
-                        d_tab1, d_tab2, d_tab3, d_tab4, d_tab5 = st.tabs([
-                            "📊 Output & Entropy", "🧩 Patch Stability", "⚖️ Hybrid Comparison", "🌀 FFT Diagnostic", "📜 C2PA & Metadata"
-                        ])
+                # --------------------------------------------------
+                # Diagnostics Expander
+                # --------------------------------------------------
+                with st.expander("🔬 Comprehensive Diagnostics & Stability Analysis", expanded=True):
+                    d_tab1, d_tab2, d_tab3, d_tab4, d_tab5 = st.tabs([
+                        "📊 Output & Entropy", "🧩 Patch Stability", "⚖️ Hybrid Comparison", "🌀 FFT Diagnostic", "📜 C2PA & Metadata"
+                    ])
 
-                        # Sub-Tab 1: Output & Entropy
-                        with d_tab1:
-                            st.markdown(f"**Inference Timing:** `{elapsed_ms:.2f} ms` | **Device:** `{device.type.upper()}` | **Resolution:** `{res.get('image_dimensions')}`")
-                            st.markdown(f"**Normalized Shannon Entropy:** `{res.get('normalized_entropy', 0.0):.4f}` (Raw: `{res.get('entropy', 0.0):.4f}`)")
-                            st.info(f"**Uncertainty Level:** {res.get('uncertainty_level')}\n\n{res.get('uncertainty_note')}")
+                    # Sub-Tab 1: Output & Entropy
+                    with d_tab1:
+                        st.markdown(f"**Inference Timing:** `{elapsed_ms:.2f} ms` | **Device:** `{device.type.upper()}` | **Resolution:** `{res.get('image_dimensions')}`")
+                        st.markdown(f"**Normalized Shannon Entropy:** `{res.get('normalized_entropy', 0.0):.4f}` (Raw: `{res.get('entropy', 0.0):.4f}`)")
+                        st.info(f"**Uncertainty Level:** {res.get('uncertainty_level')}\n\n{res.get('uncertainty_note')}")
 
-                        # Sub-Tab 2: Patch Stability & Binned Histogram
-                        with d_tab2:
-                            if "stability" in res:
-                                stab = res["stability"]
-                                s_col1, s_col2, s_col3 = st.columns(3)
-                                with s_col1:
-                                    st.metric("Mean Patch Fake Prob", f"{stab['mean_fake_probability']*100:.1f}%")
-                                    st.metric("Median Patch Fake Prob", f"{stab['median_fake_probability']*100:.1f}%")
-                                with s_col2:
-                                    st.metric("Std Dev", f"{stab['std_fake_probability']:.4f}")
-                                    st.metric("Range (Max - Min)", f"{stab['range_fake_probability']:.4f}")
-                                with s_col3:
-                                    st.metric("Patch Agreement", f"{stab['patch_agreement_pct']:.1f}%")
-                                    st.metric("Votes (Fake / Real)", f"{stab['fake_patch_count']} / {stab['real_patch_count']}")
+                    # Sub-Tab 2: Patch Stability & Binned Histogram
+                    with d_tab2:
+                        if "stability" in res:
+                            stab = res["stability"]
+                            s_col1, s_col2, s_col3 = st.columns(3)
+                            with s_col1:
+                                st.metric("Mean Patch Fake Prob", f"{stab['mean_fake_probability']*100:.1f}%")
+                                st.metric("Median Patch Fake Prob", f"{stab['median_fake_probability']*100:.1f}%")
+                            with s_col2:
+                                st.metric("Std Dev", f"{stab['std_fake_probability']:.4f}")
+                                st.metric("Range (Max - Min)", f"{stab['range_fake_probability']:.4f}")
+                            with s_col3:
+                                st.metric("Patch Agreement", f"{stab['patch_agreement_pct']:.1f}%")
+                                st.metric("Votes (Fake / Real)", f"{stab['fake_patch_count']} / {stab['real_patch_count']}")
 
-                                # Binned Probability Histogram Visualization
-                                st.markdown("---")
-                                st.subheader("📊 Patch Probability Distribution Histogram")
-                                patch_probs = res.get("patch_fake_probs", [])
-                                if patch_probs:
-                                    bins = np.linspace(0.0, 1.0, 11)
-                                    counts, _ = np.histogram(patch_probs, bins=bins)
-                                    bin_labels = [f"{bins[i]:.1f}-{bins[i+1]:.1f}" for i in range(10)]
-                                    df_hist = pd.DataFrame({"Patch Count": counts}, index=bin_labels)
-                                    st.bar_chart(df_hist)
-                            else:
-                                st.info("Patch stability diagnostics are active when in Native Patch or Hybrid inference modes.")
-
-                        # Sub-Tab 3: Hybrid Comparison
-                        with d_tab3:
-                            if "resize_prediction" in res and "patch_prediction" in res:
-                                h_resize = res["resize_prediction"]
-                                h_patch = res["patch_prediction"]
-                                h_top_k = res.get("top_k_patch_prediction", {
-                                    "label": "FAKE" if h_patch.get("top_k_patch_fake_prob", 0) >= 0.5 else "REAL",
-                                    "fake_probability": h_patch.get("top_k_patch_fake_prob", h_patch["fake_probability"]),
-                                    "real_probability": 1.0 - h_patch.get("top_k_patch_fake_prob", h_patch["fake_probability"])
-                                })
-                                
-                                st.markdown(f"**Hybrid Status:** `{res.get('agreement')}` | **Prob Difference (Resize vs Patch):** `{res.get('prediction_difference', 0.0):.4f}`")
-                                
-                                comp_data = {
-                                    "Strategy": [
-                                        "Baseline Resize (32x32)",
-                                        "Native Patch Voting (Mean)",
-                                        "Native Patch Voting (Top-K Artifacts)",
-                                        "🎯 Final Hybrid Consensus"
-                                    ],
-                                    "Predicted Label": [
-                                        h_resize["label"],
-                                        h_patch["label"],
-                                        h_top_k["label"],
-                                        res["label"]
-                                    ],
-                                    "Fake Probability": [
-                                        f"{h_resize['fake_probability']*100:.2f}%",
-                                        f"{h_patch['fake_probability']*100:.2f}%",
-                                        f"{h_top_k['fake_probability']*100:.2f}%",
-                                        f"{res['fake_probability']*100:.2f}%"
-                                    ],
-                                    "Real Probability": [
-                                        f"{h_resize['real_probability']*100:.2f}%",
-                                        f"{h_patch['real_probability']*100:.2f}%",
-                                        f"{h_top_k['real_probability']*100:.2f}%",
-                                        f"{res['real_probability']*100:.2f}%"
-                                    ]
-                                }
-                                st.dataframe(pd.DataFrame(comp_data), width="stretch")
-                                st.caption(
-                                    "💡 **Understanding Hybrid Consensus:** High-resolution AI images often contain smooth background regions "
-                                    "(sky, plain walls) alongside localized AI artifacts in detailed areas. The Hybrid Consensus engine evaluates both mean "
-                                    "and peak localized patch activations to prevent false-negative classifications when baseline downscaling obscures artifacts."
-                                )
-                            else:
-                                st.info("Hybrid comparison is available when running in 'Hybrid' mode.")
-
-                        # Sub-Tab 4: Experimental FFT Diagnostic
-                        with d_tab4:
-                            fft_data = res.get("fft_diagnostic", {})
-                            f_col1, f_col2 = st.columns(2)
-                            with f_col1:
-                                st.metric("Spectral Irregularity Score", f"{fft_data.get('spectral_score', 0.0):.4f}")
-                                st.write(f"**Diagnostic Label:** `{fft_data.get('diagnostic_label')}`")
-                            with f_col2:
-                                st.metric("High/Low Energy Ratio", f"{fft_data.get('high_to_low_ratio', 0.0):.4f}")
-                                st.metric("Spectral Slope", f"{fft_data.get('spectral_slope', 0.0):.4f}")
-
-                            st.warning(f"⚠️ **Experimental Diagnostic Note:** {fft_data.get('interpretation')}")
-
-                        # Sub-Tab 5: Stage 1 Metadata & C2PA Provenance
-                        with d_tab5:
-                            meta_data = res.get("metadata_diagnostic", {})
-                            m_col1, m_col2 = st.columns(2)
-                            with m_col1:
-                                st.write(f"**Provenance Verdict:** `{meta_data.get('provenance_verdict')}`")
-                                st.write(f"**Source Identified:** `{meta_data.get('source_identified') or 'None'}`")
-                            with m_col2:
-                                st.write(f"**C2PA Manifest Header:** `{'Detected' if meta_data.get('c2pa_manifest_detected') else 'Not Detected'}`")
-                                st.write(f"**Camera Hardware:** `{meta_data.get('camera_matched') or 'None Detected'}`")
-
+                            # Binned Probability Histogram Visualization
                             st.markdown("---")
-                            st.write("📜 **Extracted EXIF / PNG Header Summary:**")
-                            m_summary = meta_data.get("metadata_summary", {})
-                            if m_summary:
-                                st.json(m_summary)
-                            else:
-                                st.info("No EXIF or PNG metadata headers detected in file (metadata unpopulated or stripped).")
+                            st.subheader("📊 Patch Probability Distribution Histogram")
+                            patch_probs = res.get("patch_fake_probs", [])
+                            if patch_probs:
+                                bins = np.linspace(0.0, 1.0, 11)
+                                counts, _ = np.histogram(patch_probs, bins=bins)
+                                bin_labels = [f"{bins[i]:.1f}-{bins[i+1]:.1f}" for i in range(10)]
+                                df_hist = pd.DataFrame({"Patch Count": counts}, index=bin_labels)
+                                st.bar_chart(df_hist)
+                        else:
+                            st.info("Patch stability diagnostics are active when in Native Patch or Hybrid inference modes.")
+
+                    # Sub-Tab 3: Hybrid Comparison
+                    with d_tab3:
+                        if "resize_prediction" in res and "patch_prediction" in res:
+                            h_resize = res["resize_prediction"]
+                            h_patch = res["patch_prediction"]
+                            h_top_k = res.get("top_k_patch_prediction", {
+                                "label": "FAKE" if h_patch.get("top_k_patch_fake_prob", 0) >= 0.5 else "REAL",
+                                "fake_probability": h_patch.get("top_k_patch_fake_prob", h_patch["fake_probability"]),
+                                "real_probability": 1.0 - h_patch.get("top_k_patch_fake_prob", h_patch["fake_probability"])
+                            })
+                            
+                            st.markdown(f"**Hybrid Status:** `{res.get('agreement')}` | **Prob Difference (Resize vs Patch):** `{res.get('prediction_difference', 0.0):.4f}`")
+                            
+                            comp_data = {
+                                "Strategy": [
+                                    "Baseline Resize (32x32)",
+                                    "Native Patch Voting (Mean)",
+                                    "Native Patch Voting (Top-K Artifacts)",
+                                    "🎯 Final Hybrid Consensus"
+                                ],
+                                "Predicted Label": [
+                                    h_resize["label"],
+                                    h_patch["label"],
+                                    h_top_k["label"],
+                                    res["label"]
+                                ],
+                                "Fake Probability": [
+                                    f"{h_resize['fake_probability']*100:.2f}%",
+                                    f"{h_patch['fake_probability']*100:.2f}%",
+                                    f"{h_top_k['fake_probability']*100:.2f}%",
+                                    f"{res['fake_probability']*100:.2f}%"
+                                ],
+                                "Real Probability": [
+                                    f"{h_resize['real_probability']*100:.2f}%",
+                                    f"{h_patch['real_probability']*100:.2f}%",
+                                    f"{h_top_k['real_probability']*100:.2f}%",
+                                    f"{res['real_probability']*100:.2f}%"
+                                ]
+                            }
+                            st.dataframe(pd.DataFrame(comp_data), width="stretch")
+                            st.caption(
+                                "💡 **Understanding Hybrid Consensus:** High-resolution AI images often contain smooth background regions "
+                                "(sky, plain walls) alongside localized AI artifacts in detailed areas. The Hybrid Consensus engine evaluates both mean "
+                                "and peak localized patch activations to prevent false-negative classifications when baseline downscaling obscures artifacts."
+                            )
+                        else:
+                            st.info("Hybrid comparison is available when running in 'Hybrid' mode.")
+
+                    # Sub-Tab 4: Experimental FFT Diagnostic
+                    with d_tab4:
+                        fft_data = res.get("fft_diagnostic", {})
+                        f_col1, f_col2 = st.columns(2)
+                        with f_col1:
+                            st.metric("Spectral Irregularity Score", f"{fft_data.get('spectral_score', 0.0):.4f}")
+                            st.write(f"**Diagnostic Label:** `{fft_data.get('diagnostic_label')}`")
+                        with f_col2:
+                            st.metric("High/Low Energy Ratio", f"{fft_data.get('high_to_low_ratio', 0.0):.4f}")
+                            st.metric("Spectral Slope", f"{fft_data.get('spectral_slope', 0.0):.4f}")
+
+                        st.warning(f"⚠️ **Experimental Diagnostic Note:** {fft_data.get('interpretation')}")
+
+                    # Sub-Tab 5: Stage 1 Metadata & C2PA Provenance
+                    with d_tab5:
+                        meta_data = res.get("metadata_diagnostic", {})
+                        m_col1, m_col2 = st.columns(2)
+                        with m_col1:
+                            st.write(f"**Provenance Verdict:** `{meta_data.get('provenance_verdict')}`")
+                            st.write(f"**Source Identified:** `{meta_data.get('source_identified') or 'None'}`")
+                        with m_col2:
+                            st.write(f"**C2PA Manifest Header:** `{'Detected' if meta_data.get('c2pa_manifest_detected') else 'Not Detected'}`")
+                            st.write(f"**Camera Hardware:** `{meta_data.get('camera_matched') or 'None Detected'}`")
+
+                        st.markdown("---")
+                        st.write("📜 **Extracted EXIF / PNG Header Summary:**")
+                        m_summary = meta_data.get("metadata_summary", {})
+                        if m_summary:
+                            st.json(m_summary)
+                        else:
+                            st.info("No EXIF or PNG metadata headers detected in file (metadata unpopulated or stripped).")
 
             elif uploaded_file is not None:
                 st.info("Click **Analyze Image** above to run the PyTorch inference & diagnostics engine.")
