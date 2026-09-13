@@ -1,0 +1,160 @@
+"""
+SignalScope Metadata & C2PA Provenance Inspector
+Scans uploaded image EXIF, PNG info chunks, and raw byte headers for C2PA manifests,
+AI generation metadata, and camera hardware tags before invoking deep learning models.
+"""
+
+from typing import Dict, Any, Optional
+import io
+from PIL import Image, ExifTags
+
+
+KNOWN_AI_SIGNATURES = [
+    "midjourney",
+    "dall-e",
+    "dalle",
+    "stable diffusion",
+    "stablediffusion",
+    "adobe firefly",
+    "firefly",
+    "google imagen",
+    "imagen",
+    "bing image creator",
+    "c2pa",
+    "generative ai",
+    "generativeai",
+    "novelai",
+    "leonardo.ai",
+    "leonardo ai",
+    "comfyui",
+    "automatic1111",
+    "sdxl",
+    "flux.1",
+    "flux1"
+]
+
+CAMERA_MANUFACTURERS = [
+    "apple", "canon", "nikon", "sony", "fujifilm", "panasonic",
+    "olympus", "leica", "samsung", "google", "xiaomi", "oneplus",
+    "huawei", "hasselblad", "pentax", "gopro"
+]
+
+
+def inspect_image_metadata(
+    image: Image.Image,
+    raw_bytes: Optional[bytes] = None
+) -> Dict[str, Any]:
+    """
+    Inspects image for EXIF metadata, PNG info chunks, and C2PA provenance headers.
+
+    Returns:
+        Dict containing:
+            - metadata_found (bool)
+            - provenance_verdict ("AI_GENERATED" | "CAMERA_REAL" | "UNVERIFIED")
+            - source_identified (str or None)
+            - c2pa_manifest_detected (bool)
+            - metadata_summary (Dict of extracted tags)
+            - status_message (str)
+    """
+    metadata_summary: Dict[str, str] = {}
+    ai_matched_terms = []
+    camera_matched = None
+    c2pa_detected = False
+
+    # ------------------------------------------------------------------
+    # 1. EXIF Metadata Extraction
+    # ------------------------------------------------------------------
+    try:
+        exif = image.getexif()
+        if exif:
+            for tag_id, value in exif.items():
+                tag_name = ExifTags.TAGS.get(tag_id, str(tag_id))
+                val_str = str(value).strip()
+                if val_str and len(val_str) < 500:
+                    metadata_summary[tag_name] = val_str
+
+                # Check text for AI signatures
+                val_lower = val_str.lower()
+                for sig in KNOWN_AI_SIGNATURES:
+                    if sig in val_lower:
+                        ai_matched_terms.append(f"EXIF {tag_name}: '{val_str}'")
+
+                # Check camera hardware tags
+                if tag_name in ["Make", "Model"]:
+                    for cam in CAMERA_MANUFACTURERS:
+                        if cam in val_lower:
+                            camera_matched = f"{metadata_summary.get('Make', '')} {metadata_summary.get('Model', '')}".strip()
+    except Exception:
+        pass
+
+    # ------------------------------------------------------------------
+    # 2. PNG / TIFF Metadata Chunks (e.g. image.info)
+    # ------------------------------------------------------------------
+    if hasattr(image, "info") and image.info:
+        for key, val in image.info.items():
+            key_str = str(key)
+            val_str = str(val)
+            if len(val_str) < 1000:
+                metadata_summary[f"Info:{key_str}"] = val_str
+
+            val_lower = f"{key_str} {val_str}".lower()
+            for sig in KNOWN_AI_SIGNATURES:
+                if sig in val_lower:
+                    ai_matched_terms.append(f"PNG Info [{key_str}]")
+
+    # ------------------------------------------------------------------
+    # 3. Raw Byte Stream Scan (C2PA JUMBF & Digital Signature Header)
+    # ------------------------------------------------------------------
+    if raw_bytes is None:
+        try:
+            buf = io.BytesIO()
+            image.save(buf, format=image.format or "PNG")
+            raw_bytes = buf.getvalue()
+        except Exception:
+            raw_bytes = b""
+
+    if raw_bytes:
+        # C2PA manifest contains 'jumb' box type or 'c2pa' claim structure
+        if b"jumb" in raw_bytes or b"c2pa" in raw_bytes or b"C2PA" in raw_bytes:
+            c2pa_detected = True
+            metadata_summary["C2PA Manifest"] = "Detected JUMBF Digital Provenance Header"
+
+        # Scan for string patterns in bytes
+        raw_bytes_lower = raw_bytes.lower()
+        for sig in KNOWN_AI_SIGNATURES:
+            sig_bytes = sig.encode("utf-8")
+            if sig_bytes in raw_bytes_lower and f"Byte Header [{sig}]" not in ai_matched_terms:
+                ai_matched_terms.append(f"Byte Header [{sig.title()}]")
+
+    # ------------------------------------------------------------------
+    # 4. Verdict Determination
+    # ------------------------------------------------------------------
+    metadata_found = len(metadata_summary) > 0 or len(ai_matched_terms) > 0
+
+    if ai_matched_terms:
+        provenance_verdict = "AI_GENERATED"
+        source_identified = ai_matched_terms[0]
+        status_message = f"AI Provenance Verified ({source_identified})"
+    elif c2pa_detected:
+        provenance_verdict = "AI_GENERATED"
+        source_identified = "C2PA Provenance Manifest"
+        status_message = "C2PA Digital Content Credentials Manifest Detected"
+    elif camera_matched and not ai_matched_terms:
+        provenance_verdict = "CAMERA_REAL"
+        source_identified = f"Camera Hardware EXIF ({camera_matched})"
+        status_message = f"Authentic Camera Metadata Verified ({camera_matched})"
+    else:
+        provenance_verdict = "UNVERIFIED"
+        source_identified = None
+        status_message = "No definitive C2PA/AI metadata found → Passing to PyTorch ResNet-50 Pipeline"
+
+    return {
+        "metadata_found": metadata_found,
+        "provenance_verdict": provenance_verdict,
+        "source_identified": source_identified,
+        "c2pa_manifest_detected": c2pa_detected,
+        "ai_matched_terms": ai_matched_terms,
+        "camera_matched": camera_matched,
+        "metadata_summary": metadata_summary,
+        "status_message": status_message
+    }

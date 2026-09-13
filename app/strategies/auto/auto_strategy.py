@@ -66,7 +66,10 @@ def predict_image_auto(
     elif selected_mode == "tta":
         result = predict_image_tta(clean_img, model=model, device=device)
 
-    # Attach entropy, disagreement, and FFT diagnostics to the output dictionary
+    from app.diagnostics.metadata_inspector import inspect_image_metadata
+    meta_diagnostic = inspect_image_metadata(clean_img)
+
+    # Attach entropy, disagreement, FFT, and metadata diagnostics to output dictionary
     entropy_info = compute_prediction_entropy(result["fake_probability"], result["real_probability"])
     result.update(entropy_info)
 
@@ -75,6 +78,7 @@ def predict_image_auto(
         result["stability"] = disagreement_info
 
     result["fft_diagnostic"] = fft_diagnostic
+    result["metadata_diagnostic"] = meta_diagnostic
     result["image_dimensions"] = f"{w} x {h}"
     return result
 

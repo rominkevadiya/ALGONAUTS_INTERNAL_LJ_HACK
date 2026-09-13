@@ -258,15 +258,29 @@ def main():
             if uploaded_file is not None:
                 try:
                     uploaded_file.seek(0)
+                    raw_bytes = uploaded_file.read()
+                    uploaded_file.seek(0)
                     image = Image.open(uploaded_file)
                     image.load()
                 except Exception as img_err:
                     st.error(f"Unable to read uploaded image file: {str(img_err)}")
                     image = None
+                    raw_bytes = b""
 
                 if image is not None:
                     width, height = image.size
                     
+                    # Stage 1: Pre-Screening Metadata & C2PA Provenance Inspection
+                    from app.diagnostics.metadata_inspector import inspect_image_metadata
+                    pre_meta = inspect_image_metadata(image, raw_bytes=raw_bytes)
+                    
+                    if pre_meta["provenance_verdict"] == "AI_GENERATED":
+                        st.error(f"🤖 **Stage 1 Metadata Pre-Screening:** {pre_meta['status_message']}")
+                    elif pre_meta["provenance_verdict"] == "CAMERA_REAL":
+                        st.success(f"📸 **Stage 1 Metadata Pre-Screening:** {pre_meta['status_message']}")
+                    else:
+                        st.info("📜 **Stage 1 Metadata Pre-Screening:** No C2PA or AI metadata tags detected → Passing image to ResNet-50 PyTorch Pipeline.")
+
                     # Create 32x32 model input representation using bicubic interpolation matching PyTorch pipeline
                     from app.strategies.patch.patch_extractor import prepare_image
                     clean_image_input = prepare_image(image)
@@ -356,8 +370,8 @@ def main():
                     # Diagnostics Expander
                     # --------------------------------------------------
                     with st.expander("🔬 Comprehensive Diagnostics & Stability Analysis", expanded=True):
-                        d_tab1, d_tab2, d_tab3, d_tab4 = st.tabs([
-                            "📊 Output & Entropy", "🧩 Patch Stability", "⚖️ Hybrid Comparison", "🌀 FFT Diagnostic"
+                        d_tab1, d_tab2, d_tab3, d_tab4, d_tab5 = st.tabs([
+                            "📊 Output & Entropy", "🧩 Patch Stability", "⚖️ Hybrid Comparison", "🌀 FFT Diagnostic", "📜 C2PA & Metadata"
                         ])
 
                         # Sub-Tab 1: Output & Entropy
@@ -454,6 +468,25 @@ def main():
                                 st.metric("Spectral Slope", f"{fft_data.get('spectral_slope', 0.0):.4f}")
 
                             st.warning(f"⚠️ **Experimental Diagnostic Note:** {fft_data.get('interpretation')}")
+
+                        # Sub-Tab 5: Stage 1 Metadata & C2PA Provenance
+                        with d_tab5:
+                            meta_data = res.get("metadata_diagnostic", {})
+                            m_col1, m_col2 = st.columns(2)
+                            with m_col1:
+                                st.write(f"**Provenance Verdict:** `{meta_data.get('provenance_verdict')}`")
+                                st.write(f"**Source Identified:** `{meta_data.get('source_identified') or 'None'}`")
+                            with m_col2:
+                                st.write(f"**C2PA Manifest Header:** `{'Detected' if meta_data.get('c2pa_manifest_detected') else 'Not Detected'}`")
+                                st.write(f"**Camera Hardware:** `{meta_data.get('camera_matched') or 'None Detected'}`")
+
+                            st.markdown("---")
+                            st.write("📜 **Extracted EXIF / PNG Header Summary:**")
+                            m_summary = meta_data.get("metadata_summary", {})
+                            if m_summary:
+                                st.json(m_summary)
+                            else:
+                                st.info("No EXIF or PNG metadata headers detected in file (metadata unpopulated or stripped).")
 
             elif uploaded_file is not None:
                 st.info("Click **Analyze Image** above to run the PyTorch inference & diagnostics engine.")
