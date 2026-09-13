@@ -272,7 +272,8 @@ def main():
                     
                     # Stage 1: Pre-Screening Metadata & C2PA Provenance Inspection
                     from app.diagnostics.metadata_inspector import inspect_image_metadata
-                    pre_meta = inspect_image_metadata(image, raw_bytes=raw_bytes)
+                    pre_meta = inspect_image_metadata(image, raw_bytes=raw_bytes, filename=uploaded_file.name)
+
                     
                     if pre_meta["provenance_verdict"] == "AI_GENERATED":
                         st.error(f"🤖 **Stage 1 Metadata Pre-Screening:** {pre_meta['status_message']}")

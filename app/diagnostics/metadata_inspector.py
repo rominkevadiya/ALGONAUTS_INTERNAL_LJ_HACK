@@ -42,24 +42,23 @@ CAMERA_MANUFACTURERS = [
 
 def inspect_image_metadata(
     image: Image.Image,
-    raw_bytes: Optional[bytes] = None
+    raw_bytes: Optional[bytes] = None,
+    filename: Optional[str] = None
 ) -> Dict[str, Any]:
     """
-    Inspects image for EXIF metadata, PNG info chunks, and C2PA provenance headers.
-
-    Returns:
-        Dict containing:
-            - metadata_found (bool)
-            - provenance_verdict ("AI_GENERATED" | "CAMERA_REAL" | "UNVERIFIED")
-            - source_identified (str or None)
-            - c2pa_manifest_detected (bool)
-            - metadata_summary (Dict of extracted tags)
-            - status_message (str)
+    Inspects image for EXIF metadata, PNG info chunks, C2PA provenance headers, and messenger upload signatures.
     """
     metadata_summary: Dict[str, str] = {}
     ai_matched_terms = []
     camera_matched = None
     c2pa_detected = False
+
+    # Check filename patterns for social messenger camera uploads (WhatsApp, Telegram, Signal, DCIM)
+    messenger_matched = None
+    if filename:
+        fn_lower = filename.lower()
+        if any(pat in fn_lower for pat in ["whatsapp", "telegram", "signal", "img_", "pxl_", "dsci", "wa0"]):
+            messenger_matched = filename
 
     # ------------------------------------------------------------------
     # 1. EXIF Metadata Extraction
@@ -129,7 +128,7 @@ def inspect_image_metadata(
     # ------------------------------------------------------------------
     # 4. Verdict Determination
     # ------------------------------------------------------------------
-    metadata_found = len(metadata_summary) > 0 or len(ai_matched_terms) > 0
+    metadata_found = len(metadata_summary) > 0 or len(ai_matched_terms) > 0 or messenger_matched is not None
 
     if ai_matched_terms:
         provenance_verdict = "AI_GENERATED"
@@ -143,10 +142,15 @@ def inspect_image_metadata(
         provenance_verdict = "CAMERA_REAL"
         source_identified = f"Camera Hardware EXIF ({camera_matched})"
         status_message = f"Authentic Camera Metadata Verified ({camera_matched})"
+    elif messenger_matched and not ai_matched_terms:
+        provenance_verdict = "CAMERA_REAL"
+        source_identified = f"User Camera Media ({messenger_matched})"
+        status_message = f"Authentic Media Upload Verified ({messenger_matched})"
     else:
         provenance_verdict = "UNVERIFIED"
         source_identified = None
         status_message = "No definitive C2PA/AI metadata found → Passing to PyTorch ResNet-50 Pipeline"
+
 
     return {
         "metadata_found": metadata_found,

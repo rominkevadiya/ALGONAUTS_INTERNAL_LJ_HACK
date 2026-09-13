@@ -72,8 +72,8 @@ def predict_image_hybrid(
     # Rule 0: Extreme Localized AI Artifact Override
     # High-res AI images (Gemini, Midjourney) often have smooth backgrounds (sky/walls) 
     # that fool baseline resize, but contain severe AI artifacts in key patches.
-    # ONLY trigger if the patch voting mean is also leaning fake (>= 0.45) or patch_res label is FAKE.
-    if top_k_patch_fake >= 0.85 and (patch_res["label"] == "FAKE" or patch_fake >= 0.45) and not (dark_image and lit_patch_fake < 0.40):
+    # ONLY trigger if resize is NOT overwhelmingly REAL (< 0.90) AND patch vote is strongly fake (>= 0.55).
+    if top_k_patch_fake >= 0.88 and resize_real < 0.90 and patch_fake >= 0.55 and not (dark_image and lit_patch_fake < 0.40):
         hybrid_fake = float(max(0.60, top_k_patch_fake * 0.70 + resize_fake * 0.30))
         hybrid_real = 1.0 - hybrid_fake
         hybrid_label = "FAKE"
@@ -82,35 +82,24 @@ def predict_image_hybrid(
 
     # Branch 1: Baseline Resize is overwhelmingly REAL (resize_real >= 0.90)
     elif resize_real >= 0.90:
-        if patch_res["label"] == "FAKE" or (top_k_patch_fake >= 0.85 and patch_fake >= 0.45):
-            # Patch says FAKE or Extreme Artifacts exist. Determine if this is dark sensor noise or real AI artifact.
-            is_natural_spectrum = fft_score < 0.40
-            is_lit_artifact = lit_patch_fake >= 0.60 and not dark_image
-            is_very_confident_real = resize_real >= 0.98
-
-            if (is_very_confident_real or (is_natural_spectrum and not is_lit_artifact)) and top_k_patch_fake < 0.85:
-                # Sensor noise / dark shadow false positive in a real photo
-                hybrid_fake = float(resize_fake * 0.80 + lit_patch_fake * 0.20)
-                hybrid_real = 1.0 - hybrid_fake
-                hybrid_label = "REAL"
-                hybrid_confidence = hybrid_real
-                agreement = "Real Photo (Camera Noise Filtered)"
-            else:
-                # Lit foreground patches show AI artifacts AND/OR spectrum is irregular
-                hybrid_fake = float((resize_fake * 0.35 + top_k_patch_fake * 0.65))
-                if top_k_patch_fake >= 0.85 and hybrid_fake < 0.5:
-                    hybrid_fake = float(top_k_patch_fake * 0.65 + resize_fake * 0.35)
-                hybrid_real = 1.0 - hybrid_fake
-                hybrid_label = "FAKE" if hybrid_fake > hybrid_real else "REAL"
-                hybrid_confidence = hybrid_fake if hybrid_label == "FAKE" else hybrid_real
-                agreement = "Extreme Local AI Artifacts Detected" if top_k_patch_fake >= 0.85 else "Local AI Artifacts Detected"
+        if patch_fake >= 0.65 or (top_k_patch_fake >= 0.90 and patch_fake >= 0.60):
+            # Lit foreground patches show AI artifacts AND spectrum is irregular
+            hybrid_fake = float((resize_fake * 0.35 + top_k_patch_fake * 0.65))
+            if top_k_patch_fake >= 0.85 and hybrid_fake < 0.5:
+                hybrid_fake = float(top_k_patch_fake * 0.65 + resize_fake * 0.35)
+            hybrid_real = 1.0 - hybrid_fake
+            hybrid_label = "FAKE" if hybrid_fake > hybrid_real else "REAL"
+            hybrid_confidence = hybrid_fake if hybrid_label == "FAKE" else hybrid_real
+            agreement = "Extreme Local AI Artifacts Detected" if top_k_patch_fake >= 0.85 else "Local AI Artifacts Detected"
         else:
-            # Both agree REAL
-            hybrid_fake = float(resize_fake * 0.5 + patch_fake * 0.5)
+            # Baseline resize is overwhelmingly REAL (>= 90%) and patch mean is <= 65%
+            # High-frequency pattern texture (woven fabric/bedsheets/tablecloth/noise) in a real photo
+            hybrid_fake = float(resize_fake * 0.70 + patch_fake * 0.30)
             hybrid_real = 1.0 - hybrid_fake
             hybrid_label = "REAL"
             hybrid_confidence = hybrid_real
-            agreement = "Strong Agreement" if diff < HYBRID_STRONG_DIFF else "Partial Agreement"
+            agreement = "Real Photo (Pattern Texture Filtered)"
+
 
     # Branch 2: Baseline Resize predicts FAKE (often distorted by 32x32 downscaling aliasing on high-res camera photos)
     elif resize_res["label"] == "FAKE":
