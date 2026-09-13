@@ -144,6 +144,38 @@ def _calculate_branch_statistics(
     }
 
 
+from app.strategies.base_strategy import BaseStrategy, validate_strategy_output
+from app.strategies.strategy_registry import register_strategy
+
+
+def _compute_adaptive_weights(
+    image: Image.Image,
+    base_global: float = MULTISCALE_GLOBAL_WEIGHT,
+    base_context: float = MULTISCALE_CONTEXT_WEIGHT,
+    base_texture: float = MULTISCALE_TEXTURE_WEIGHT,
+) -> Tuple[float, float, float]:
+    """
+    Dynamically adjusts branch weights based on image resolution and frequency energy:
+    - High-resolution images (> 1024px) boost native texture branch.
+    - Low-resolution images (< 128px) boost global branch.
+    - Medium-resolution images boost context branch.
+    """
+    w, h = image.size
+    max_dim = max(w, h)
+
+    if max_dim <= 64:
+        # Small image: heavily rely on global branch
+        g_wt, c_wt, t_wt = 0.80, 0.10, 0.10
+    elif max_dim >= 1024:
+        # Large high-res image: rely more on native texture details
+        g_wt, c_wt, t_wt = 0.35, 0.35, 0.30
+    else:
+        g_wt, c_wt, t_wt = base_global, base_context, base_texture
+
+    total = g_wt + c_wt + t_wt
+    return g_wt / total, c_wt / total, t_wt / total
+
+
 def predict_image_multiscale(
     image: Image.Image,
     model: torch.nn.Module | None = None,
@@ -167,6 +199,11 @@ def predict_image_multiscale(
         loaded_model, loaded_device = load_model()
         model = model or loaded_model
         device = device or loaded_device
+
+    # Compute adaptive weights based on image dimension
+    adaptive_g, adaptive_c, adaptive_t = _compute_adaptive_weights(
+        image, base_global=global_weight, base_context=context_weight, base_texture=texture_weight
+    )
 
     # ------------------------------------------------------------------
     # 1. Global Branch (Original 32x32 baseline)
@@ -204,17 +241,17 @@ def predict_image_multiscale(
 
     # Global branch is always available
     active_branches.append("global")
-    weights_raw.append(global_weight)
+    weights_raw.append(adaptive_g)
     fake_probs_active.append(global_fake_prob)
 
     if ctx_branch_stats["patch_count"] > 0:
         active_branches.append("object_context")
-        weights_raw.append(context_weight)
+        weights_raw.append(adaptive_c)
         fake_probs_active.append(ctx_branch_stats["fake_probability"])
 
     if tex_branch_stats["patch_count"] > 0:
         active_branches.append("native_texture")
-        weights_raw.append(texture_weight)
+        weights_raw.append(adaptive_t)
         fake_probs_active.append(tex_branch_stats["fake_probability"])
 
     # Re-normalize weights over available active branches
@@ -261,7 +298,7 @@ def predict_image_multiscale(
     else:
         explanation = f"Multi-scale analysis confirmed authentic photographic patterns (Final Real Prob: {final_real_prob*100:.1f}%)."
 
-    return {
+    res = {
         "label": final_label,
         "confidence": round(final_confidence, 4),
         "fake_probability": round(final_fake_prob, 4),
@@ -292,3 +329,35 @@ def predict_image_multiscale(
 
         "confidence_info": interpret_confidence(final_confidence)
     }
+
+    return validate_strategy_output(res, strategy_name="multiscale")
+
+
+class MultiScaleStrategy(BaseStrategy):
+    """Concrete BaseStrategy implementation for Multi-Scale 3-Branch Analysis."""
+
+    @property
+    def name(self) -> str:
+        return "multiscale"
+
+    @property
+    def display_name(self) -> str:
+        return "Multi-Scale 3-Branch Analysis"
+
+    @property
+    def description(self) -> str:
+        return "Fuses Global (32x32), Object/Context (128x128 16-patches), and Native Texture (32x32 crops) evidence branches."
+
+    def predict(
+        self,
+        image: Image.Image,
+        model: torch.nn.Module | None = None,
+        device: torch.device | None = None,
+        **kwargs: Any
+    ) -> Dict[str, Any]:
+        return predict_image_multiscale(image, model=model, device=device, **kwargs)
+
+
+# Register strategy with StrategyRegistry
+register_strategy(MultiScaleStrategy())
+

@@ -170,7 +170,7 @@ def predict_image_hybrid(
 
     top_k_label = "FAKE" if top_k_patch_fake >= 0.5 else "REAL"
 
-    return {
+    res = {
         "label": hybrid_label,
         "confidence": hybrid_confidence,
         "fake_probability": hybrid_fake,
@@ -201,3 +201,38 @@ def predict_image_hybrid(
         "inference_mode": "hybrid",
         "confidence_info": interpret_confidence(hybrid_confidence)
     }
+    return validate_strategy_output(res, strategy_name="hybrid")
+
+
+from app.strategies.base_strategy import BaseStrategy, validate_strategy_output
+from app.strategies.strategy_registry import register_strategy
+
+
+class HybridStrategy(BaseStrategy):
+    """Concrete BaseStrategy implementation for Hybrid Fusion Strategy."""
+
+    @property
+    def name(self) -> str:
+        return "hybrid"
+
+    @property
+    def display_name(self) -> str:
+        return "Hybrid Fusion (Resize + Patch + FFT)"
+
+    @property
+    def description(self) -> str:
+        return "Combines single-pass resize, native patch voting, and FFT spectral anomaly diagnostics."
+
+    def predict(
+        self,
+        image: Image.Image,
+        model: torch.nn.Module | None = None,
+        device: torch.device | None = None,
+        **kwargs: Any
+    ) -> Dict[str, Any]:
+        return predict_image_hybrid(image, model=model, device=device, **kwargs)
+
+
+# Register strategy with StrategyRegistry
+register_strategy(HybridStrategy())
+

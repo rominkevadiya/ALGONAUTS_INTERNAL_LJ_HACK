@@ -16,6 +16,15 @@ from app.diagnostics.fft_spectral import (
 from app.diagnostics.metadata_inspector import (
     inspect_image_metadata,
 )
+from app.strategies.base_strategy import (
+    BaseStrategy,
+    validate_strategy_output,
+)
+from app.strategies.strategy_registry import (
+    StrategyRegistry,
+    get_strategy,
+    list_strategies,
+)
 from app.strategies.patch.patch_extractor import (
     prepare_image,
     get_inference_transform,
@@ -49,6 +58,11 @@ __all__ = [
     "compute_prediction_disagreement",
     "compute_fft_spectral_diagnostic",
     "inspect_image_metadata",
+    "BaseStrategy",
+    "validate_strategy_output",
+    "StrategyRegistry",
+    "get_strategy",
+    "list_strategies",
     "prepare_image",
     "get_inference_transform",
     "get_patch_transform",

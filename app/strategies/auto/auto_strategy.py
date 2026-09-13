@@ -20,6 +20,10 @@ from app.strategies.tta.tta_strategy import predict_image_tta
 from app.strategies.hybrid.hybrid_strategy import predict_image_hybrid
 
 
+from app.strategies.base_strategy import BaseStrategy, validate_strategy_output
+from app.strategies.strategy_registry import register_strategy
+
+
 def predict_image_auto(
     image: Image.Image,
     model: torch.nn.Module | None = None,
@@ -30,16 +34,14 @@ def predict_image_auto(
     aggregation: str = PATCH_AGGREGATION_DEFAULT
 ) -> Dict[str, Any]:
     """
-    Unified automatic dispatcher supporting modes: 'auto', 'resize', 'patch', 'hybrid', 'tta'.
+    Unified automatic dispatcher supporting modes: 'auto', 'multiscale', 'resize', 'patch', 'hybrid', 'tta'.
     """
-    if mode not in INFERENCE_MODES:
-        raise ValueError(f"Invalid inference mode '{mode}'. Supported: {INFERENCE_MODES}")
-
     clean_img = prepare_image(image)
     w, h = clean_img.size
     min_dim = min(w, h)
+    max_dim = max(w, h)
 
-    # Resolution-aware automatic selection logic
+    # Resolution & context-aware automatic selection logic
     selected_mode = mode
     if mode == "auto":
         if min_dim < 64:
@@ -48,6 +50,7 @@ def predict_image_auto(
             selected_mode = "patch"
         else:
             selected_mode = "hybrid"
+
 
     # Compute FFT once at the dispatcher level for hybrid/auto to avoid double computation
     fft_diagnostic = compute_fft_spectral_diagnostic(clean_img)
@@ -59,7 +62,7 @@ def predict_image_auto(
     # Short-circuit if verified AI metadata or C2PA manifest is present
     if meta_diagnostic["provenance_verdict"] == "AI_GENERATED":
         source_id = meta_diagnostic.get("source_identified") or "AI Generator Provenance Tag"
-        return {
+        res = {
             "label": "FAKE",
             "confidence": 1.00,
             "fake_probability": 1.00,
@@ -79,6 +82,7 @@ def predict_image_auto(
                 "badge": "🤖 C2PA / AI PROVENANCE VERIFIED"
             }
         }
+        return validate_strategy_output(res, strategy_name="auto_metadata")
 
     if selected_mode == "resize":
         result = predict_image(clean_img, model=model, device=device)
@@ -96,9 +100,10 @@ def predict_image_auto(
         result = predict_image_multiscale(clean_img, model=model, device=device)
     elif selected_mode == "tta":
         result = predict_image_tta(clean_img, model=model, device=device)
-
-    from app.diagnostics.metadata_inspector import inspect_image_metadata
-    meta_diagnostic = inspect_image_metadata(clean_img)
+    else:
+        # Fallback to multiscale
+        from app.strategies.multiscale.multiscale_strategy import predict_image_multiscale
+        result = predict_image_multiscale(clean_img, model=model, device=device)
 
     # Attach entropy, disagreement, FFT, and metadata diagnostics to output dictionary
     entropy_info = compute_prediction_entropy(result["fake_probability"], result["real_probability"])
@@ -111,7 +116,36 @@ def predict_image_auto(
     result["fft_diagnostic"] = fft_diagnostic
     result["metadata_diagnostic"] = meta_diagnostic
     result["image_dimensions"] = f"{w} x {h}"
-    return result
+    return validate_strategy_output(result, strategy_name="auto")
+
+
+class AutoStrategy(BaseStrategy):
+    """Concrete BaseStrategy implementation for Resolution & Metadata Aware Auto Dispatcher."""
+
+    @property
+    def name(self) -> str:
+        return "auto"
+
+    @property
+    def display_name(self) -> str:
+        return "Auto (Smart Pipeline Router)"
+
+    @property
+    def description(self) -> str:
+        return "Automatically checks C2PA/EXIF metadata, then routes image to best strategy based on resolution."
+
+    def predict(
+        self,
+        image: Image.Image,
+        model: torch.nn.Module | None = None,
+        device: torch.device | None = None,
+        **kwargs: Any
+    ) -> Dict[str, Any]:
+        return predict_image_auto(image, model=model, device=device, **kwargs)
+
+
+# Register strategy with StrategyRegistry
+register_strategy(AutoStrategy())
 
 
 def predict_batch(
@@ -161,3 +195,4 @@ def predict_batch(
             })
 
     return pd.DataFrame(results)
+

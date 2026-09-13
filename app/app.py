@@ -184,22 +184,19 @@ def main():
         st.markdown("---")
         st.header("⚙️ Inference Controls")
         
-        mode_labels = {
-            "auto": "Automatic (Resolution-Aware)",
-            "multiscale": "Multi-Scale Evidence Fusion (3-Branch)",
-            "resize": "Resize (Baseline 32×32)",
-            "patch": "Native Patch Voting",
-            "hybrid": "Hybrid (Resize + Patch)",
-            "tta": "Test-Time Augmentation (TTA)"
-        }
-        
+        from app.strategies import list_strategies
+        registered_strats = list_strategies()
+        strategy_options = [s["key"] for s in registered_strats]
+        strategy_labels = {s["key"]: s["display_name"] for s in registered_strats}
+
         selected_mode_key = st.selectbox(
             "Inference Strategy",
-            options=INFERENCE_MODES,
-            index=INFERENCE_MODES.index(DEFAULT_INFERENCE_MODE),
-            format_func=lambda x: mode_labels.get(x, x),
+            options=strategy_options,
+            index=strategy_options.index(DEFAULT_INFERENCE_MODE) if DEFAULT_INFERENCE_MODE in strategy_options else 0,
+            format_func=lambda x: strategy_labels.get(x, x),
             help="Select how the image is presented to the trained model."
         )
+
 
         with st.expander("🛠️ Advanced Settings", expanded=False):
             patch_n_val = st.slider(

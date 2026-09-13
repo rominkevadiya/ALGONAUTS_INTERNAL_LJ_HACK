@@ -36,7 +36,7 @@ def predict_image(
     predicted_label = CLASS_MAPPING.get(predicted_class_idx, "UNKNOWN")
     confidence = fake_prob if predicted_label == "FAKE" else real_prob
 
-    return {
+    res = {
         "label": predicted_label,
         "confidence": confidence,
         "fake_probability": fake_prob,
@@ -44,3 +44,38 @@ def predict_image(
         "inference_mode": "resize",
         "confidence_info": interpret_confidence(confidence)
     }
+    return validate_strategy_output(res, strategy_name="resize")
+
+
+from app.strategies.base_strategy import BaseStrategy, validate_strategy_output
+from app.strategies.strategy_registry import register_strategy
+
+
+class ResizeStrategy(BaseStrategy):
+    """Concrete BaseStrategy implementation for Baseline Single-Pass Resize Strategy."""
+
+    @property
+    def name(self) -> str:
+        return "resize"
+
+    @property
+    def display_name(self) -> str:
+        return "Single-Pass (32x32 Resize Baseline)"
+
+    @property
+    def description(self) -> str:
+        return "Resizes the entire image directly to 32x32 and executes single-pass inference."
+
+    def predict(
+        self,
+        image: Image.Image,
+        model: torch.nn.Module | None = None,
+        device: torch.device | None = None,
+        **kwargs: Any
+    ) -> Dict[str, Any]:
+        return predict_image(image, model=model, device=device)
+
+
+# Register strategy with StrategyRegistry
+register_strategy(ResizeStrategy())
+

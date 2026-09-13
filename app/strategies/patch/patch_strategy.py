@@ -161,4 +161,39 @@ def predict_image_patch_vote(
     
     # Store internal patch array strictly for Hybrid strategy to re-evaluate if needed
     res["_patches"] = patches
-    return res
+    return validate_strategy_output(res, strategy_name="patch")
+
+
+from app.strategies.base_strategy import BaseStrategy, validate_strategy_output
+from app.strategies.strategy_registry import register_strategy
+
+
+
+class PatchStrategy(BaseStrategy):
+    """Concrete BaseStrategy implementation for Native Patch Voting Strategy."""
+
+    @property
+    def name(self) -> str:
+        return "patch"
+
+    @property
+    def display_name(self) -> str:
+        return "Patch Grid Analysis"
+
+    @property
+    def description(self) -> str:
+        return "Extracts native-resolution 32x32 patches across the image grid and aggregates predictions."
+
+    def predict(
+        self,
+        image: Image.Image,
+        model: torch.nn.Module | None = None,
+        device: torch.device | None = None,
+        **kwargs: Any
+    ) -> Dict[str, Any]:
+        return predict_image_patch_vote(image, model=model, device=device, **kwargs)
+
+
+# Register strategy with StrategyRegistry
+register_strategy(PatchStrategy())
+

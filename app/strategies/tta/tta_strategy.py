@@ -106,7 +106,7 @@ def predict_image_tta(
     label = "FAKE" if weighted_fake > weighted_real else "REAL"
     confidence = weighted_fake if label == "FAKE" else weighted_real
 
-    return {
+    res = {
         "label": label,
         "confidence": confidence,
         "fake_probability": weighted_fake,
@@ -126,3 +126,38 @@ def predict_image_tta(
         "inference_mode": "tta",
         "confidence_info": interpret_confidence(confidence)
     }
+    return validate_strategy_output(res, strategy_name="tta")
+
+
+from app.strategies.base_strategy import BaseStrategy, validate_strategy_output
+from app.strategies.strategy_registry import register_strategy
+
+
+class TTAStrategy(BaseStrategy):
+    """Concrete BaseStrategy implementation for Test-Time Augmentation Strategy."""
+
+    @property
+    def name(self) -> str:
+        return "tta"
+
+    @property
+    def display_name(self) -> str:
+        return "Test-Time Augmentation (8-View TTA)"
+
+    @property
+    def description(self) -> str:
+        return "Evaluates 8 geometric/photometric views with inverse-entropy weighting for robust inference."
+
+    def predict(
+        self,
+        image: Image.Image,
+        model: torch.nn.Module | None = None,
+        device: torch.device | None = None,
+        **kwargs: Any
+    ) -> Dict[str, Any]:
+        return predict_image_tta(image, model=model, device=device)
+
+
+# Register strategy with StrategyRegistry
+register_strategy(TTAStrategy())
+
