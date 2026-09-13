@@ -452,6 +452,11 @@ def predict_image_patch_vote(
     max_patch_fake = float(np.max(fake_probs_list))
     min_patch_fake = float(np.min(fake_probs_list))
     
+    # Calculate patch luminances (brightness) to distinguish sensor noise from AI artifacts
+    patch_luminances = [float(np.mean(np.array(p, dtype=np.float32))) for p in patches]
+    lit_fake_probs = [fp for fp, lum in zip(fake_probs_list, patch_luminances) if lum >= 45.0]
+    lit_patch_fake = float(np.mean(lit_fake_probs)) if lit_fake_probs else float(np.mean(fake_probs_list))
+
     # Top-K (top 25% highest fake probability patches)
     k_count = max(1, len(fake_probs_list) // 4)
     top_k_fake_probs = sorted(fake_probs_list, reverse=True)[:k_count]
@@ -498,6 +503,7 @@ def predict_image_patch_vote(
         "max_patch_fake_prob": max_patch_fake,
         "min_patch_fake_prob": min_patch_fake,
         "top_k_patch_fake_prob": top_k_patch_fake,
+        "lit_patch_fake_prob": lit_patch_fake,
         "patch_coordinates": coords,
         "inference_mode": "patch",
         "confidence_info": interpret_confidence(confidence)
@@ -583,9 +589,11 @@ def predict_image_hybrid(
     )
 
     resize_fake = resize_res["fake_probability"]
+    resize_real = resize_res["real_probability"]
     patch_fake = patch_res["fake_probability"]
     max_patch_fake = patch_res.get("max_patch_fake_prob", patch_fake)
     top_k_patch_fake = patch_res.get("top_k_patch_fake_prob", patch_fake)
+    lit_patch_fake = patch_res.get("lit_patch_fake_prob", patch_fake)
 
     clean_img = prepare_image(image)
     fft_res = compute_fft_spectral_diagnostic(clean_img)
@@ -593,50 +601,66 @@ def predict_image_hybrid(
 
     diff = abs(resize_fake - patch_fake)
 
-    # 1. Authentic Camera Photo with Dark Shadow Noise:
-    # If Baseline Resize is >95% REAL AND FFT Spectral Score confirms a natural camera spectrum (<0.40),
-    # the high patch fake score is a known false positive from camera sensor noise in dark shadows.
-    if resize_res["real_probability"] >= 0.95 and fft_score < 0.40:
-        hybrid_fake = float(resize_fake * 0.85 + patch_fake * 0.15)
-        hybrid_real = 1.0 - hybrid_fake
-        hybrid_label = "REAL"
-        hybrid_confidence = hybrid_real
-        agreement = "Real Camera Photo (Noise Disagreement Resolved)"
+    # 1. Baseline Resize is Overwhelmingly REAL (resize_real >= 0.90):
+    if resize_real >= 0.90:
+        if patch_res["label"] == "FAKE":
+            # Native patch voting says FAKE. Is this dark camera sensor noise / shadow grain?
+            # Or genuine high-res AI image with localized AI artifacts on lit foreground patches?
+            if lit_patch_fake < 0.60 or resize_real >= 0.98:
+                # Real photograph with dark shadow / camera sensor noise.
+                # Baseline 32x32 resize correctly identified the real photo semantics (>=90-98% REAL).
+                hybrid_fake = float(resize_fake * 0.80 + lit_patch_fake * 0.20)
+                hybrid_real = 1.0 - hybrid_fake
+                hybrid_label = "REAL"
+                hybrid_confidence = hybrid_real
+                agreement = "Real Photo (Camera Noise Filtered)"
+            else:
+                # Lit/foreground patches ALSO show strong AI artifacts (high-res Gemini/DALL-E portrait)
+                hybrid_fake = float((resize_fake + top_k_patch_fake) / 2.0)
+                hybrid_real = 1.0 - hybrid_fake
+                hybrid_label = "FAKE" if hybrid_fake > hybrid_real else "REAL"
+                hybrid_confidence = hybrid_fake if hybrid_label == "FAKE" else hybrid_real
+                agreement = "Local AI Artifacts Detected"
+        else:
+            # Both Baseline Resize and Patch Voting agree REAL!
+            hybrid_fake = float(resize_fake * 0.5 + patch_fake * 0.5)
+            hybrid_real = 1.0 - hybrid_fake
+            hybrid_label = "REAL"
+            hybrid_confidence = hybrid_real
+            agreement = "Strong Agreement" if diff < HYBRID_STRONG_DIFF else "Partial Agreement"
 
-    # 2. Localized AI Artifacts in High-Res Images (e.g. Gemini / DALL-E / Midjourney):
-    elif resize_res["label"] == "REAL" and (top_k_patch_fake >= 0.65 or max_patch_fake >= 0.80 or (patch_fake - resize_fake) >= 0.30 or fft_score >= 0.45):
-        # Localized AI artifacts detected by patch voting or FFT spectral analysis!
-        hybrid_fake = float(max(patch_fake, (resize_fake + top_k_patch_fake) / 2.0))
-        if top_k_patch_fake >= 0.70 or fft_score >= 0.55:
-            hybrid_fake = float((hybrid_fake + top_k_patch_fake) / 2.0)
-        hybrid_real = 1.0 - hybrid_fake
-        hybrid_label = "FAKE" if hybrid_fake > hybrid_real else "REAL"
-        hybrid_confidence = hybrid_fake if hybrid_label == "FAKE" else hybrid_real
-        if hybrid_label == "FAKE":
+    # 2. Baseline Resize predicts FAKE (resize_fake >= 0.50):
+    elif resize_res["label"] == "FAKE":
+        if patch_res["label"] == "FAKE":
+            # Both agree FAKE!
+            hybrid_fake = float(max(patch_fake, (resize_fake + top_k_patch_fake) / 2.0))
+            hybrid_real = 1.0 - hybrid_fake
+            hybrid_label = "FAKE"
+            hybrid_confidence = hybrid_fake
+            agreement = "Strong Agreement" if diff < HYBRID_STRONG_DIFF else "Partial Agreement"
+        else:
+            # Baseline Resize said FAKE (due to downscaling aliasing/moire), but Patch Voting said REAL!
+            hybrid_fake = float(resize_fake * 0.30 + patch_fake * 0.70)
+            hybrid_real = 1.0 - hybrid_fake
+            hybrid_label = "REAL" if hybrid_real > hybrid_fake else "FAKE"
+            hybrid_confidence = hybrid_real if hybrid_label == "REAL" else hybrid_fake
+            agreement = "Native Patch Confirmed (Aliasing Filtered)"
+
+    # 3. Baseline Resize is Moderate REAL (0.50 <= resize_real < 0.90):
+    else:
+        if patch_res["label"] == "FAKE" and (top_k_patch_fake >= 0.75 or (patch_fake - resize_fake) >= 0.35):
+            # Localized AI artifacts in high-res AI image (e.g. Gemini / Midjourney)
+            hybrid_fake = float(max(patch_fake, (resize_fake + top_k_patch_fake) / 2.0))
+            hybrid_real = 1.0 - hybrid_fake
+            hybrid_label = "FAKE" if hybrid_fake > hybrid_real else "REAL"
+            hybrid_confidence = hybrid_fake if hybrid_label == "FAKE" else hybrid_real
             agreement = "Local AI Artifacts Detected"
         else:
-            agreement = "Moderate Agreement"
-
-    # 3. Standard Strategy Disagreement (e.g. general ambiguity):
-    elif resize_res["label"] != patch_res["label"]:
-        hybrid_fake = (resize_fake + patch_fake) / 2.0
-        hybrid_real = 1.0 - hybrid_fake
-        hybrid_label = "FAKE" if hybrid_fake > hybrid_real else "REAL"
-        hybrid_confidence = hybrid_fake if hybrid_label == "FAKE" else hybrid_real
-        agreement = "Strategy Disagreement"
-
-    # 4. Standard Agreement:
-    else:
-        hybrid_label = patch_res["label"]
-        hybrid_confidence = patch_res["confidence"]
-        hybrid_fake = patch_fake
-        hybrid_real = 1.0 - hybrid_fake
-        if diff < HYBRID_STRONG_DIFF:
-            agreement = "Strong Agreement"
-        elif diff < HYBRID_PARTIAL_DIFF:
-            agreement = "Partial Agreement"
-        else:
-            agreement = "Moderate Agreement"
+            hybrid_fake = float((resize_fake + patch_fake) / 2.0)
+            hybrid_real = 1.0 - hybrid_fake
+            hybrid_label = "FAKE" if hybrid_fake > hybrid_real else "REAL"
+            hybrid_confidence = hybrid_fake if hybrid_label == "FAKE" else hybrid_real
+            agreement = "Strategy Disagreement" if resize_res["label"] != patch_res["label"] else "Moderate Agreement"
 
     top_k_label = "FAKE" if top_k_patch_fake >= 0.5 else "REAL"
 
