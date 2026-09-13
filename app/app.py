@@ -323,7 +323,25 @@ def main():
                         "image_dimensions": f"{width} x {height}"
                     }
                     elapsed_ms = 0.1
+                elif pre_meta["provenance_verdict"] == "CAMERA_REAL":
+                    # Bypass deep learning model — directly return Camera-Real result from verified EXIF hardware tags
+                    res = {
+                        "label": "REAL",
+                        "confidence": 0.99,
+                        "fake_probability": 0.01,
+                        "real_probability": 0.99,
+                        "inference_mode": "camera_metadata",
+                        "agreement": f"Authentic Camera Metadata Verified ({pre_meta['source_identified']})",
+                        "normalized_entropy": 0.0,
+                        "entropy": 0.0,
+                        "uncertainty_level": "Certain (99% Hardware Verified)",
+                        "uncertainty_note": f"Image contains verified authentic camera hardware metadata: {pre_meta['status_message']}. Deep learning PyTorch execution skipped.",
+                        "metadata_diagnostic": pre_meta,
+                        "image_dimensions": f"{width} x {height}"
+                    }
+                    elapsed_ms = 0.1
                 else:
+
                     mode_str = str(selected_mode_key or "auto").upper()
                     with st.spinner(f"Executing PyTorch inference ({mode_str} mode)..."):
                         start_t = time.time()

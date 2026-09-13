@@ -71,8 +71,9 @@ def predict_image_hybrid(
 
     # Rule 0: Extreme Localized AI Artifact Override
     # High-res AI images (Gemini, Midjourney) often have smooth backgrounds (sky/walls) 
-    # that fool baseline resize, but contain severe AI artifacts in key patches (top_k >= 0.80).
-    if top_k_patch_fake >= 0.80 and not (dark_image and lit_patch_fake < 0.40):
+    # that fool baseline resize, but contain severe AI artifacts in key patches.
+    # ONLY trigger if the patch voting mean is also leaning fake (>= 0.45) or patch_res label is FAKE.
+    if top_k_patch_fake >= 0.85 and (patch_res["label"] == "FAKE" or patch_fake >= 0.45) and not (dark_image and lit_patch_fake < 0.40):
         hybrid_fake = float(max(0.60, top_k_patch_fake * 0.70 + resize_fake * 0.30))
         hybrid_real = 1.0 - hybrid_fake
         hybrid_label = "FAKE"
@@ -81,7 +82,7 @@ def predict_image_hybrid(
 
     # Branch 1: Baseline Resize is overwhelmingly REAL (resize_real >= 0.90)
     elif resize_real >= 0.90:
-        if patch_res["label"] == "FAKE" or top_k_patch_fake >= 0.85:
+        if patch_res["label"] == "FAKE" or (top_k_patch_fake >= 0.85 and patch_fake >= 0.45):
             # Patch says FAKE or Extreme Artifacts exist. Determine if this is dark sensor noise or real AI artifact.
             is_natural_spectrum = fft_score < 0.40
             is_lit_artifact = lit_patch_fake >= 0.60 and not dark_image
@@ -97,7 +98,6 @@ def predict_image_hybrid(
             else:
                 # Lit foreground patches show AI artifacts AND/OR spectrum is irregular
                 hybrid_fake = float((resize_fake * 0.35 + top_k_patch_fake * 0.65))
-                # Ensure it crosses 0.5 if triggered by extreme top_k
                 if top_k_patch_fake >= 0.85 and hybrid_fake < 0.5:
                     hybrid_fake = float(top_k_patch_fake * 0.65 + resize_fake * 0.35)
                 hybrid_real = 1.0 - hybrid_fake
@@ -112,7 +112,7 @@ def predict_image_hybrid(
             hybrid_confidence = hybrid_real
             agreement = "Strong Agreement" if diff < HYBRID_STRONG_DIFF else "Partial Agreement"
 
-    # Branch 2: Baseline Resize predicts FAKE
+    # Branch 2: Baseline Resize predicts FAKE (often distorted by 32x32 downscaling aliasing on high-res camera photos)
     elif resize_res["label"] == "FAKE":
         if patch_res["label"] == "FAKE":
             # Both agree FAKE — reinforce with FFT
@@ -123,18 +123,14 @@ def predict_image_hybrid(
             hybrid_confidence = hybrid_fake
             agreement = "Strong Agreement" if diff < HYBRID_STRONG_DIFF else "Partial Agreement"
         else:
-            # Resize=FAKE but Patch=REAL (likely downscaling aliasing/moiré on real photo)
-            # Trust patch more (native pixels); FFT breaks the tie if spectrum is irregular
-            if fft_score >= 0.50:
-                # Irregular spectrum supports FAKE
-                hybrid_fake = float(resize_fake * 0.50 + patch_fake * 0.50)
-            else:
-                # Natural spectrum → trust patch vote that this is REAL
-                hybrid_fake = float(resize_fake * 0.25 + patch_fake * 0.75)
+            # Resize=FAKE but Native Patch Voting=REAL (32x32 downscaling aliasing on high-res photo)
+            # Trust native 1:1 pixel patches (patch_fake) which are free of downscaling distortion
+            hybrid_fake = float(patch_fake * 0.80 + resize_fake * 0.20)
             hybrid_real = 1.0 - hybrid_fake
             hybrid_label = "REAL" if hybrid_real > hybrid_fake else "FAKE"
             hybrid_confidence = hybrid_real if hybrid_label == "REAL" else hybrid_fake
             agreement = "Native Patch Confirmed (Aliasing Filtered)"
+
 
     # Branch 3: Moderate REAL from Baseline (0.50 <= resize_real < 0.90)
     else:
