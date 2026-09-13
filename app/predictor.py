@@ -600,28 +600,40 @@ def predict_image_hybrid(
         agreement = "Disagreement"
 
     # Balanced hybrid decision rules
-    if agreement == "Disagreement":
+    if resize_res["label"] != patch_res["label"]:
         # Strategy Disagreement (e.g. Resize says REAL, Patch says FAKE due to dark webcam noise):
         # Balance probabilities between strategies so result reflects genuine uncertainty
         hybrid_fake = (resize_fake + patch_fake) / 2.0
         hybrid_real = 1.0 - hybrid_fake
         hybrid_label = "FAKE" if hybrid_fake > hybrid_real else "REAL"
         hybrid_confidence = hybrid_fake if hybrid_label == "FAKE" else hybrid_real
+        agreement = "Strategy Disagreement"
     elif resize_res["label"] == "REAL" and (top_k_patch_fake >= 0.65 or max_patch_fake >= 0.80 or (patch_fake - resize_fake) >= 0.30):
         # Localized AI artifacts detected by patch voting in a high-resolution image!
         # Factor in top-k patch probability
         hybrid_fake = float(max(patch_fake, (resize_fake + top_k_patch_fake) / 2.0))
-        # If top_k_patch_fake is strong (> 0.70), elevate fake activation
         if top_k_patch_fake >= 0.70:
             hybrid_fake = float((hybrid_fake + top_k_patch_fake) / 2.0)
         hybrid_real = 1.0 - hybrid_fake
         hybrid_label = "FAKE" if hybrid_fake > hybrid_real else "REAL"
         hybrid_confidence = hybrid_fake if hybrid_label == "FAKE" else hybrid_real
+        if hybrid_label == "FAKE":
+            agreement = "Local AI Artifacts Detected"
+        else:
+            agreement = "Moderate Agreement"
     else:
         hybrid_label = patch_res["label"]
         hybrid_confidence = patch_res["confidence"]
         hybrid_fake = patch_fake
         hybrid_real = 1.0 - hybrid_fake
+        if diff < HYBRID_STRONG_DIFF:
+            agreement = "Strong Agreement"
+        elif diff < HYBRID_PARTIAL_DIFF:
+            agreement = "Partial Agreement"
+        else:
+            agreement = "Moderate Agreement"
+
+    top_k_label = "FAKE" if top_k_patch_fake >= 0.5 else "REAL"
 
     return {
         "label": hybrid_label,
@@ -643,6 +655,11 @@ def predict_image_hybrid(
             "patch_fake_probs": patch_res.get("patch_fake_probs", []),
             "max_patch_fake_prob": max_patch_fake,
             "top_k_patch_fake_prob": top_k_patch_fake
+        },
+        "top_k_patch_prediction": {
+            "label": top_k_label,
+            "fake_probability": top_k_patch_fake,
+            "real_probability": 1.0 - top_k_patch_fake
         },
         "inference_mode": "hybrid",
         "confidence_info": interpret_confidence(hybrid_confidence)

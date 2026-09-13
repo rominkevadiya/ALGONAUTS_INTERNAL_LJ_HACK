@@ -380,16 +380,46 @@ def main():
                             if "resize_prediction" in res and "patch_prediction" in res:
                                 h_resize = res["resize_prediction"]
                                 h_patch = res["patch_prediction"]
+                                h_top_k = res.get("top_k_patch_prediction", {
+                                    "label": "FAKE" if h_patch.get("top_k_patch_fake_prob", 0) >= 0.5 else "REAL",
+                                    "fake_probability": h_patch.get("top_k_patch_fake_prob", h_patch["fake_probability"]),
+                                    "real_probability": 1.0 - h_patch.get("top_k_patch_fake_prob", h_patch["fake_probability"])
+                                })
                                 
-                                st.markdown(f"**Hybrid Status:** `{res.get('agreement')}` | **Prob Difference:** `{res.get('prediction_difference', 0.0):.4f}`")
+                                st.markdown(f"**Hybrid Status:** `{res.get('agreement')}` | **Prob Difference (Resize vs Patch):** `{res.get('prediction_difference', 0.0):.4f}`")
                                 
                                 comp_data = {
-                                    "Strategy": ["Baseline Resize (32x32)", "Native Patch Voting"],
-                                    "Predicted Label": [h_resize["label"], h_patch["label"]],
-                                    "Fake Probability": [f"{h_resize['fake_probability']*100:.2f}%", f"{h_patch['fake_probability']*100:.2f}%"],
-                                    "Real Probability": [f"{h_resize['real_probability']*100:.2f}%", f"{h_patch['real_probability']*100:.2f}%"]
+                                    "Strategy": [
+                                        "Baseline Resize (32x32)",
+                                        "Native Patch Voting (Mean)",
+                                        "Native Patch Voting (Top-K Artifacts)",
+                                        "🎯 Final Hybrid Consensus"
+                                    ],
+                                    "Predicted Label": [
+                                        h_resize["label"],
+                                        h_patch["label"],
+                                        h_top_k["label"],
+                                        res["label"]
+                                    ],
+                                    "Fake Probability": [
+                                        f"{h_resize['fake_probability']*100:.2f}%",
+                                        f"{h_patch['fake_probability']*100:.2f}%",
+                                        f"{h_top_k['fake_probability']*100:.2f}%",
+                                        f"{res['fake_probability']*100:.2f}%"
+                                    ],
+                                    "Real Probability": [
+                                        f"{h_resize['real_probability']*100:.2f}%",
+                                        f"{h_patch['real_probability']*100:.2f}%",
+                                        f"{h_top_k['real_probability']*100:.2f}%",
+                                        f"{res['real_probability']*100:.2f}%"
+                                    ]
                                 }
                                 st.dataframe(pd.DataFrame(comp_data), width="stretch")
+                                st.caption(
+                                    "💡 **Understanding Hybrid Consensus:** High-resolution AI images often contain smooth background regions "
+                                    "(sky, plain walls) alongside localized AI artifacts in detailed areas. The Hybrid Consensus engine evaluates both mean "
+                                    "and peak localized patch activations to prevent false-negative classifications when baseline downscaling obscures artifacts."
+                                )
                             else:
                                 st.info("Hybrid comparison is available when running in 'Hybrid' mode.")
 
