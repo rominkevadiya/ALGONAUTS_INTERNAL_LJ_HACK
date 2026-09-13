@@ -184,10 +184,11 @@ def main():
         st.markdown("---")
         st.header("⚙️ Inference Controls")
         
-        from app.strategies import list_strategies
+        from app.strategies.strategy_registry import list_strategies
         registered_strats = list_strategies()
         strategy_options = [s["key"] for s in registered_strats]
         strategy_labels = {s["key"]: s["display_name"] for s in registered_strats}
+
 
         selected_mode_key = st.selectbox(
             "Inference Strategy",
@@ -324,13 +325,8 @@ def main():
                 else:
                     with st.spinner(f"Executing PyTorch inference ({selected_mode_key.upper()} mode)..."):
                         start_t = time.time()
-                        
-                        import importlib
-                        import app.strategies.hybrid.hybrid_strategy
-                        import app.strategies.auto.auto_strategy
-                        importlib.reload(app.strategies.hybrid.hybrid_strategy)
-                        importlib.reload(app.strategies.auto.auto_strategy)
                         from app.predictor import predict_image_auto
+
 
                         res = predict_image_auto(
                             image,
