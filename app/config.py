@@ -84,16 +84,32 @@ CONFIDENCE_DISCLAIMER = (
     "Confidence represents model probability, not a absolute guarantee of authenticity."
 )
 
-# Benchmark Performance (CIFAKE Test Set)
-BENCHMARK_METRICS = {
-    "Model Architecture": "ResNet-50 (Native 32x32 Stem)",
-    "Dataset": "CIFAKE",
-    "Input Size": "32 x 32",
-    "Classes": "FAKE, REAL",
-    "Test Accuracy": "98.33%",
-    "Macro F1 Score": "0.9832",
-    "ROC-AUC": "0.9987",
-    "PR-AUC": "0.9988",
-    "Inference Speed": "~916 img/sec (GPU Batch)"
-}
+# Benchmark Performance Metrics (Loaded dynamically from evaluation results if present)
+def load_dynamic_benchmark_metrics():
+    summary_path = BASE_DIR / "evaluation" / "evaluation_summary.json"
+    if summary_path.exists():
+        try:
+            import json
+            with open(summary_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            strict = data.get("classification_strict_metrics", {}).get("auto", {})
+            if strict and "accuracy" in strict and data.get("total_classification_samples", 0) > 0:
+                return {
+                    "Model Architecture": "ResNet-50 (Native 32x32 Stem)",
+                    "Evaluated Samples": str(data.get("total_classification_samples", 0)),
+                    "Auto Mode Accuracy": f"{strict.get('accuracy', 0)*100:.2f}%",
+                    "Macro F1 Score": f"{strict.get('f1', 0):.4f}",
+                    "ROC-AUC": f"{strict.get('auc', 0):.4f}",
+                    "Brier Score": f"{strict.get('brier_score', 0):.4f}",
+                    "Evaluation Date": str(data.get("timestamp", "N/A"))
+                }
+        except Exception:
+            pass
+    return {
+        "Model Architecture": "ResNet-50 (Native 32x32 Stem)",
+        "Dataset Metrics": "No predefined static data. Run evaluation/evaluate_strategies.py --dataset <path> to compute live empirical metrics."
+    }
+
+BENCHMARK_METRICS = load_dynamic_benchmark_metrics()
+
 

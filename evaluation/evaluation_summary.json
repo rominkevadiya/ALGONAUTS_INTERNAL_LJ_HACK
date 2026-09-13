@@ -1,0 +1,504 @@
+{
+  "timestamp": "2026-09-13 18:55:33",
+  "dataset_path": "evaluation/dataset",
+  "total_classification_samples": 0,
+  "robustness_benchmark": {
+    "resize": {
+      "passed": 10,
+      "total": 10,
+      "details": [
+        {
+          "test_case": "Tiny (16\u00d716, RGB)",
+          "passed": true,
+          "label": "FAKE",
+          "fake_probability": 0.9996747970581055,
+          "elapsed_ms": 31.458100012969226
+        },
+        {
+          "test_case": "Small (64\u00d764, RGB)",
+          "passed": true,
+          "label": "FAKE",
+          "fake_probability": 0.9999998807907104,
+          "elapsed_ms": 20.506200002273545
+        },
+        {
+          "test_case": "Medium (128\u00d7128, RGB)",
+          "passed": true,
+          "label": "FAKE",
+          "fake_probability": 0.9984549283981323,
+          "elapsed_ms": 19.857500010402873
+        },
+        {
+          "test_case": "HD (512\u00d7512, RGB)",
+          "passed": true,
+          "label": "FAKE",
+          "fake_probability": 0.9709219336509705,
+          "elapsed_ms": 21.53200001339428
+        },
+        {
+          "test_case": "Full-HD (1920\u00d71080, RGB)",
+          "passed": true,
+          "label": "FAKE",
+          "fake_probability": 0.9984729886054993,
+          "elapsed_ms": 37.0522000011988
+        },
+        {
+          "test_case": "Dark (256\u00d7256, RGB)",
+          "passed": true,
+          "label": "FAKE",
+          "fake_probability": 0.9984954595565796,
+          "elapsed_ms": 20.252900023479015
+        },
+        {
+          "test_case": "Bright (256\u00d7256, RGB)",
+          "passed": true,
+          "label": "REAL",
+          "fake_probability": 5.4062715207692236e-05,
+          "elapsed_ms": 20.91150000342168
+        },
+        {
+          "test_case": "Grayscale (128\u00d7128, L)",
+          "passed": true,
+          "label": "FAKE",
+          "fake_probability": 1.0,
+          "elapsed_ms": 19.977000018116087
+        },
+        {
+          "test_case": "RGBA (256\u00d7256, RGBA)",
+          "passed": true,
+          "label": "FAKE",
+          "fake_probability": 0.9999887943267822,
+          "elapsed_ms": 20.405399991432205
+        },
+        {
+          "test_case": "Square solid (32\u00d732)",
+          "passed": true,
+          "label": "FAKE",
+          "fake_probability": 0.5330929160118103,
+          "elapsed_ms": 18.80180000443943
+        }
+      ]
+    },
+    "patch": {
+      "passed": 10,
+      "total": 10,
+      "details": [
+        {
+          "test_case": "Tiny (16\u00d716, RGB)",
+          "passed": true,
+          "label": "FAKE",
+          "fake_probability": 0.9996747970581055,
+          "elapsed_ms": 19.847899995511398
+        },
+        {
+          "test_case": "Small (64\u00d764, RGB)",
+          "passed": true,
+          "label": "FAKE",
+          "fake_probability": 0.9999998839948604,
+          "elapsed_ms": 146.27319999272004
+        },
+        {
+          "test_case": "Medium (128\u00d7128, RGB)",
+          "passed": true,
+          "label": "FAKE",
+          "fake_probability": 0.564678800906126,
+          "elapsed_ms": 134.27840001531877
+        },
+        {
+          "test_case": "HD (512\u00d7512, RGB)",
+          "passed": true,
+          "label": "FAKE",
+          "fake_probability": 0.9999997979686257,
+          "elapsed_ms": 318.22009998722933
+        },
+        {
+          "test_case": "Full-HD (1920\u00d71080, RGB)",
+          "passed": true,
+          "label": "REAL",
+          "fake_probability": 0.44998983073479193,
+          "elapsed_ms": 790.4150999966078
+        },
+        {
+          "test_case": "Dark (256\u00d7256, RGB)",
+          "passed": true,
+          "label": "FAKE",
+          "fake_probability": 0.999999026408621,
+          "elapsed_ms": 143.3166000060737
+        },
+        {
+          "test_case": "Bright (256\u00d7256, RGB)",
+          "passed": true,
+          "label": "FAKE",
+          "fake_probability": 0.9999689675082462,
+          "elapsed_ms": 144.36430000932887
+        },
+        {
+          "test_case": "Grayscale (128\u00d7128, L)",
+          "passed": true,
+          "label": "FAKE",
+          "fake_probability": 1.0,
+          "elapsed_ms": 143.0718999763485
+        },
+        {
+          "test_case": "RGBA (256\u00d7256, RGBA)",
+          "passed": true,
+          "label": "FAKE",
+          "fake_probability": 0.9999998936817204,
+          "elapsed_ms": 147.68940000794828
+        },
+        {
+          "test_case": "Square solid (32\u00d732)",
+          "passed": true,
+          "label": "FAKE",
+          "fake_probability": 0.5330946445465088,
+          "elapsed_ms": 139.93969999137335
+        }
+      ]
+    },
+    "tta": {
+      "passed": 10,
+      "total": 10,
+      "details": [
+        {
+          "test_case": "Tiny (16\u00d716, RGB)",
+          "passed": true,
+          "label": "FAKE",
+          "fake_probability": 0.983869989601194,
+          "elapsed_ms": 76.2850999890361
+        },
+        {
+          "test_case": "Small (64\u00d764, RGB)",
+          "passed": true,
+          "label": "FAKE",
+          "fake_probability": 0.8921879475904585,
+          "elapsed_ms": 65.94510001013987
+        },
+        {
+          "test_case": "Medium (128\u00d7128, RGB)",
+          "passed": true,
+          "label": "FAKE",
+          "fake_probability": 0.9870270248307615,
+          "elapsed_ms": 71.90199999604374
+        },
+        {
+          "test_case": "HD (512\u00d7512, RGB)",
+          "passed": true,
+          "label": "FAKE",
+          "fake_probability": 0.9638483699716003,
+          "elapsed_ms": 94.12769999471493
+        },
+        {
+          "test_case": "Full-HD (1920\u00d71080, RGB)",
+          "passed": true,
+          "label": "FAKE",
+          "fake_probability": 0.9879710030767972,
+          "elapsed_ms": 202.65499997185543
+        },
+        {
+          "test_case": "Dark (256\u00d7256, RGB)",
+          "passed": true,
+          "label": "FAKE",
+          "fake_probability": 0.9900223607271057,
+          "elapsed_ms": 72.9552999837324
+        },
+        {
+          "test_case": "Bright (256\u00d7256, RGB)",
+          "passed": true,
+          "label": "REAL",
+          "fake_probability": 0.0006929091392125974,
+          "elapsed_ms": 70.27060000109486
+        },
+        {
+          "test_case": "Grayscale (128\u00d7128, L)",
+          "passed": true,
+          "label": "FAKE",
+          "fake_probability": 0.99658006456301,
+          "elapsed_ms": 75.59729999047704
+        },
+        {
+          "test_case": "RGBA (256\u00d7256, RGBA)",
+          "passed": true,
+          "label": "FAKE",
+          "fake_probability": 0.9923165914317006,
+          "elapsed_ms": 76.25869999174029
+        },
+        {
+          "test_case": "Square solid (32\u00d732)",
+          "passed": true,
+          "label": "FAKE",
+          "fake_probability": 0.8352406282864363,
+          "elapsed_ms": 71.36269999318756
+        }
+      ]
+    },
+    "hybrid": {
+      "passed": 10,
+      "total": 10,
+      "details": [
+        {
+          "test_case": "Tiny (16\u00d716, RGB)",
+          "passed": true,
+          "label": "FAKE",
+          "fake_probability": 0.9996747970581055,
+          "elapsed_ms": 42.59810000075959
+        },
+        {
+          "test_case": "Small (64\u00d764, RGB)",
+          "passed": true,
+          "label": "FAKE",
+          "fake_probability": 0.999999964237213,
+          "elapsed_ms": 338.57239998178557
+        },
+        {
+          "test_case": "Medium (128\u00d7128, RGB)",
+          "passed": true,
+          "label": "FAKE",
+          "fake_probability": 0.9662311904132366,
+          "elapsed_ms": 339.86059998278506
+        },
+        {
+          "test_case": "HD (512\u00d7512, RGB)",
+          "passed": true,
+          "label": "FAKE",
+          "fake_probability": 0.9912765800952911,
+          "elapsed_ms": 391.42339999671094
+        },
+        {
+          "test_case": "Full-HD (1920\u00d71080, RGB)",
+          "passed": true,
+          "label": "FAKE",
+          "fake_probability": 0.5538363886493456,
+          "elapsed_ms": 2364.5220000180416
+        },
+        {
+          "test_case": "Dark (256\u00d7256, RGB)",
+          "passed": true,
+          "label": "FAKE",
+          "fake_probability": 0.9995485231280326,
+          "elapsed_ms": 353.55830000480637
+        },
+        {
+          "test_case": "Bright (256\u00d7256, RGB)",
+          "passed": true,
+          "label": "FAKE",
+          "fake_probability": 0.6500148539333168,
+          "elapsed_ms": 337.231299985433
+        },
+        {
+          "test_case": "Grayscale (128\u00d7128, L)",
+          "passed": true,
+          "label": "FAKE",
+          "fake_probability": 1.0,
+          "elapsed_ms": 424.7707000176888
+        },
+        {
+          "test_case": "RGBA (256\u00d7256, RGBA)",
+          "passed": true,
+          "label": "FAKE",
+          "fake_probability": 0.9999966382980345,
+          "elapsed_ms": 338.9669000171125
+        },
+        {
+          "test_case": "Square solid (32\u00d732)",
+          "passed": true,
+          "label": "FAKE",
+          "fake_probability": 0.5330946445465088,
+          "elapsed_ms": 345.89430000050925
+        }
+      ]
+    },
+    "auto": {
+      "passed": 10,
+      "total": 10,
+      "details": [
+        {
+          "test_case": "Tiny (16\u00d716, RGB)",
+          "passed": true,
+          "label": "FAKE",
+          "fake_probability": 0.9996747970581055,
+          "elapsed_ms": 26.88950000447221
+        },
+        {
+          "test_case": "Small (64\u00d764, RGB)",
+          "passed": true,
+          "label": "FAKE",
+          "fake_probability": 0.9999998839948604,
+          "elapsed_ms": 146.37750000110827
+        },
+        {
+          "test_case": "Medium (128\u00d7128, RGB)",
+          "passed": true,
+          "label": "FAKE",
+          "fake_probability": 0.564678800906126,
+          "elapsed_ms": 144.82250000583008
+        },
+        {
+          "test_case": "HD (512\u00d7512, RGB)",
+          "passed": true,
+          "label": "FAKE",
+          "fake_probability": 0.9912765800952911,
+          "elapsed_ms": 435.350899992045
+        },
+        {
+          "test_case": "Full-HD (1920\u00d71080, RGB)",
+          "passed": true,
+          "label": "FAKE",
+          "fake_probability": 0.5596864623089335,
+          "elapsed_ms": 2639.2734000110067
+        },
+        {
+          "test_case": "Dark (256\u00d7256, RGB)",
+          "passed": true,
+          "label": "FAKE",
+          "fake_probability": 0.9995485752820967,
+          "elapsed_ms": 183.94870002521202
+        },
+        {
+          "test_case": "Bright (256\u00d7256, RGB)",
+          "passed": true,
+          "label": "FAKE",
+          "fake_probability": 0.6500140984444442,
+          "elapsed_ms": 179.49900001985952
+        },
+        {
+          "test_case": "Grayscale (128\u00d7128, L)",
+          "passed": true,
+          "label": "FAKE",
+          "fake_probability": 1.0,
+          "elapsed_ms": 143.7826000037603
+        },
+        {
+          "test_case": "RGBA (256\u00d7256, RGBA)",
+          "passed": true,
+          "label": "FAKE",
+          "fake_probability": 0.9999966382980345,
+          "elapsed_ms": 192.0889999892097
+        },
+        {
+          "test_case": "Square solid (32\u00d732)",
+          "passed": true,
+          "label": "FAKE",
+          "fake_probability": 0.5330929160118103,
+          "elapsed_ms": 21.723699988797307
+        }
+      ]
+    },
+    "multiscale": {
+      "passed": 10,
+      "total": 10,
+      "details": [
+        {
+          "test_case": "Tiny (16\u00d716, RGB)",
+          "passed": true,
+          "label": "FAKE",
+          "fake_probability": 0.9275,
+          "elapsed_ms": 151.8551000044681
+        },
+        {
+          "test_case": "Small (64\u00d764, RGB)",
+          "passed": true,
+          "label": "FAKE",
+          "fake_probability": 0.9999,
+          "elapsed_ms": 194.7304999921471
+        },
+        {
+          "test_case": "Medium (128\u00d7128, RGB)",
+          "passed": true,
+          "label": "FAKE",
+          "fake_probability": 0.7715,
+          "elapsed_ms": 286.8208000145387
+        },
+        {
+          "test_case": "HD (512\u00d7512, RGB)",
+          "passed": true,
+          "label": "FAKE",
+          "fake_probability": 0.9855,
+          "elapsed_ms": 2857.1132000070065
+        },
+        {
+          "test_case": "Full-HD (1920\u00d71080, RGB)",
+          "passed": true,
+          "label": "FAKE",
+          "fake_probability": 0.6703,
+          "elapsed_ms": 2820.4356000060216
+        },
+        {
+          "test_case": "Dark (256\u00d7256, RGB)",
+          "passed": true,
+          "label": "FAKE",
+          "fake_probability": 0.9988,
+          "elapsed_ms": 855.5669000197668
+        },
+        {
+          "test_case": "Bright (256\u00d7256, RGB)",
+          "passed": true,
+          "label": "REAL",
+          "fake_probability": 0.2007,
+          "elapsed_ms": 835.0618999975268
+        },
+        {
+          "test_case": "Grayscale (128\u00d7128, L)",
+          "passed": true,
+          "label": "FAKE",
+          "fake_probability": 1.0,
+          "elapsed_ms": 334.05950001906604
+        },
+        {
+          "test_case": "RGBA (256\u00d7256, RGBA)",
+          "passed": true,
+          "label": "FAKE",
+          "fake_probability": 1.0,
+          "elapsed_ms": 816.2147000257391
+        },
+        {
+          "test_case": "Square solid (32\u00d732)",
+          "passed": true,
+          "label": "UNCERTAIN",
+          "fake_probability": 0.5331,
+          "elapsed_ms": 183.07070000446402
+        }
+      ]
+    }
+  },
+  "determinism_benchmark": {
+    "resize": {
+      "consistent": 3,
+      "total": 3,
+      "is_deterministic": true
+    },
+    "patch": {
+      "consistent": 3,
+      "total": 3,
+      "is_deterministic": true
+    },
+    "tta": {
+      "consistent": 3,
+      "total": 3,
+      "is_deterministic": true
+    },
+    "hybrid": {
+      "consistent": 3,
+      "total": 3,
+      "is_deterministic": true
+    },
+    "auto": {
+      "consistent": 3,
+      "total": 3,
+      "is_deterministic": true
+    },
+    "multiscale": {
+      "consistent": 3,
+      "total": 3,
+      "is_deterministic": true
+    }
+  },
+  "classification_strict_metrics": {},
+  "classification_covered_metrics": {},
+  "resolution_sliced_metrics": {},
+  "auto_routing_counts": {},
+  "runtime_benchmark": {},
+  "recommendations": {
+    "status": "No labeled dataset provided",
+    "message": "Classification benchmark requires a labeled REAL/FAKE dataset."
+  }
+}

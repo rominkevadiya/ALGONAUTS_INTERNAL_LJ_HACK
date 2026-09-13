@@ -307,59 +307,26 @@ def main():
             st.subheader("🎯 Inference & Diagnostic Output")
 
             if uploaded_file is not None and analyze_clicked:
-                if pre_meta["provenance_verdict"] == "AI_GENERATED":
-                    # Bypass deep learning model completely — directly return AI-Generated result from verified metadata
-                    res = {
-                        "label": "FAKE",
-                        "confidence": 1.00,
-                        "fake_probability": 1.00,
-                        "real_probability": 0.00,
-                        "inference_mode": "metadata_provenance",
-                        "agreement": f"AI Metadata Verified ({pre_meta['source_identified']})",
-                        "normalized_entropy": 0.0,
-                        "entropy": 0.0,
-                        "uncertainty_level": "Certain (100% Provenance Verified)",
-                        "uncertainty_note": f"Image contains verified digital AI metadata: {pre_meta['status_message']}. Deep learning PyTorch execution skipped.",
-                        "metadata_diagnostic": pre_meta,
-                        "image_dimensions": f"{width} x {height}"
-                    }
-                    elapsed_ms = 0.1
-                elif pre_meta["provenance_verdict"] == "CAMERA_REAL":
-                    # Bypass deep learning model — directly return Camera-Real result from verified EXIF hardware tags
-                    res = {
-                        "label": "REAL",
-                        "confidence": 0.99,
-                        "fake_probability": 0.01,
-                        "real_probability": 0.99,
-                        "inference_mode": "camera_metadata",
-                        "agreement": f"Authentic Camera Metadata Verified ({pre_meta['source_identified']})",
-                        "normalized_entropy": 0.0,
-                        "entropy": 0.0,
-                        "uncertainty_level": "Certain (99% Hardware Verified)",
-                        "uncertainty_note": f"Image contains verified authentic camera hardware metadata: {pre_meta['status_message']}. Deep learning PyTorch execution skipped.",
-                        "metadata_diagnostic": pre_meta,
-                        "image_dimensions": f"{width} x {height}"
-                    }
-                    elapsed_ms = 0.1
-                else:
+                mode_str = str(selected_mode_key or "auto").upper()
+                with st.spinner(f"Executing PyTorch inference ({mode_str} mode)..."):
+                    start_t = time.time()
+                    from app.predictor import predict_image_auto
 
-                    mode_str = str(selected_mode_key or "auto").upper()
-                    with st.spinner(f"Executing PyTorch inference ({mode_str} mode)..."):
-                        start_t = time.time()
-                        from app.predictor import predict_image_auto
+                    res = predict_image_auto(
+                        image,
+                        model=model,
+                        device=device,
+                        mode=selected_mode_key or "auto",
+                        n_patches=patch_n_val,
+                        seed=int(seed_val),
+                        aggregation=aggregation_val
+                    )
+                    elapsed_ms = (time.time() - start_t) * 1000
 
-                        res = predict_image_auto(
-                            image,
-                            model=model,
-                            device=device,
-                            mode=selected_mode_key or "auto",
-                            n_patches=patch_n_val,
-                            seed=int(seed_val),
-                            aggregation=aggregation_val
-                        )
+                # Attach metadata diagnostic if present
+                if "metadata_diagnostic" not in res:
+                    res["metadata_diagnostic"] = pre_meta
 
-                        
-                        elapsed_ms = (time.time() - start_t) * 1000
 
                 label = res["label"]
                 conf = res["confidence"]
@@ -625,18 +592,18 @@ def main():
         """)
 
         st.markdown("---")
-        st.subheader("📈 Benchmark Performance Metrics (CIFAKE Test Set)")
+        st.subheader("📈 Benchmark Performance Metrics")
 
-        m_col1, m_col2, m_col3 = st.columns(3)
-        with m_col1:
-            st.metric("Test Accuracy", BENCHMARK_METRICS.get("Test Accuracy", "98.33%"))
-            st.metric("Macro F1 Score", BENCHMARK_METRICS.get("Macro F1 Score", "0.9832"))
-        with m_col2:
-            st.metric("ROC-AUC", BENCHMARK_METRICS.get("ROC-AUC", "0.9987"))
-            st.metric("PR-AUC", BENCHMARK_METRICS.get("PR-AUC", "0.9988"))
-        with m_col3:
-            st.metric("Sensitivity", "98.34%")
-            st.metric("Specificity", "98.31%")
+        m_keys = list(BENCHMARK_METRICS.keys())
+        if len(m_keys) >= 3:
+            cols = st.columns(min(len(m_keys), 3))
+            for i, (k, v) in enumerate(BENCHMARK_METRICS.items()):
+                col_idx = i % len(cols)
+                cols[col_idx].markdown(f"**{k}:** `{v}`")
+        else:
+            for k, v in BENCHMARK_METRICS.items():
+                st.markdown(f"**{k}:** `{v}`")
+
 
         outputs_dir = Path(__file__).resolve().parent.parent / "outputs"
         if outputs_dir.exists():

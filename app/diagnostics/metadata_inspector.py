@@ -102,7 +102,7 @@ def inspect_image_metadata(
                     ai_matched_terms.append(f"PNG Info [{key_str}]")
 
     # ------------------------------------------------------------------
-    # 3. Raw Byte Stream Scan (C2PA JUMBF & Digital Signature Header)
+    # 3. Structured Raw Byte Stream Scan (C2PA JUMBF Manifest Box)
     # ------------------------------------------------------------------
     if raw_bytes is None:
         try:
@@ -113,24 +113,21 @@ def inspect_image_metadata(
             raw_bytes = b""
 
     if raw_bytes:
-        # C2PA manifest contains 'jumb' box type or 'c2pa' claim structure
-        if b"jumb" in raw_bytes or b"c2pa" in raw_bytes or b"C2PA" in raw_bytes:
+        # C2PA JUMBF specification requires 'jumb' followed by 'c2pa' claim signature box
+        if b"jumbc2pa" in raw_bytes or b"c2pa.claim" in raw_bytes or b"c2pa.manifest" in raw_bytes:
             c2pa_detected = True
-            metadata_summary["C2PA Manifest"] = "Detected JUMBF Digital Provenance Header"
-
-        # Scan for string patterns in bytes
-        raw_bytes_lower = raw_bytes.lower()
-        for sig in KNOWN_AI_SIGNATURES:
-            sig_bytes = sig.encode("utf-8")
-            if sig_bytes in raw_bytes_lower and f"Byte Header [{sig}]" not in ai_matched_terms:
-                ai_matched_terms.append(f"Byte Header [{sig.title()}]")
+            metadata_summary["C2PA Manifest"] = "Detected Verified JUMBF Digital Provenance Header"
 
     # ------------------------------------------------------------------
     # 4. Verdict Determination
     # ------------------------------------------------------------------
     metadata_found = len(metadata_summary) > 0 or len(ai_matched_terms) > 0 or messenger_matched is not None
 
-    if ai_matched_terms:
+    if camera_matched and not ai_matched_terms and not c2pa_detected:
+        provenance_verdict = "CAMERA_REAL"
+        source_identified = f"Camera Hardware EXIF ({camera_matched})"
+        status_message = f"Authentic Camera Metadata Verified ({camera_matched})"
+    elif ai_matched_terms:
         provenance_verdict = "AI_GENERATED"
         source_identified = ai_matched_terms[0]
         status_message = f"AI Provenance Verified ({source_identified})"
@@ -138,10 +135,6 @@ def inspect_image_metadata(
         provenance_verdict = "AI_GENERATED"
         source_identified = "C2PA Provenance Manifest"
         status_message = "C2PA Digital Content Credentials Manifest Detected"
-    elif camera_matched and not ai_matched_terms:
-        provenance_verdict = "CAMERA_REAL"
-        source_identified = f"Camera Hardware EXIF ({camera_matched})"
-        status_message = f"Authentic Camera Metadata Verified ({camera_matched})"
     elif messenger_matched and not ai_matched_terms:
         provenance_verdict = "CAMERA_REAL"
         source_identified = f"User Camera Media ({messenger_matched})"
@@ -162,3 +155,4 @@ def inspect_image_metadata(
         "metadata_summary": metadata_summary,
         "status_message": status_message
     }
+
