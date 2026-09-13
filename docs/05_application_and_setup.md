@@ -58,10 +58,13 @@ python -m venv .venv
 # 4. Install dependencies
 pip install -r requirements.txt
 
-# 5. Launch Streamlit app
+# 5. Set up your Gemini API Key for Explainability (Create a .env file in root)
+# GEMINI_API_KEY=your_key_here
+
+# 6. Launch Streamlit app
 streamlit run app/app.py
 
-# 6. Run unit test suite
+# 7. Run unit test suite
 pytest tests/test_predictor.py -v
 ```
 
@@ -94,6 +97,12 @@ pytest tests/test_predictor.py -v
 - **`hybrid_strategy.py`**: Decision tree combining Resize, Patch, and FFT diagnostics.
 - **`patch_strategy.py`**: Variance-guided native crop extraction with adaptive luminance thresholds.
 - **`tta_strategy.py`**: 8-view geometric/photometric augmentation with inverse-entropy weighting.
+
+### `app/diagnostics/` & `model/` (Bonus Modules)
+- **`explainer.py`**: Integrates Gemini API for human-readable faithful explanations and image-text consistency scoring.
+- **`metadata_inspector.py`**: Extracts EXIF data and validates C2PA Content Credentials for digital provenance.
+- **`grad_cam.py`**: Generates gradient-weighted class activation mapping (Grad-CAM) heatmaps to visualize ResNet focus.
+- **`model/generator_attribution.py`**: Uses Gemini API to deduce the exact generator family (e.g. Midjourney vs DALL-E) from visual artifacts.
 
 ### `app/app.py`
 - Streamlit application entry point implementing header, tabs, single-image preview, prediction visual boxes, live diagnostic logits expander, batch upload, and CSV downloads.

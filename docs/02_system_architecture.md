@@ -8,7 +8,8 @@ SignalScope is organized into decoupled Python modules:
 - **`app/model_loader.py`**: Handles device selection (`cuda` vs `cpu`), instantiates `torchvision.models.resnet50(weights=None)`, auto-detects the checkpoint stem variant, replacing the final layer with `Linear(2048, 2)`, restores weight tensors, and caches the model using Streamlit's `@st.cache_resource`.
 - **`app/predictor.py`**: Facade module that delegates inference to specialized strategies (`auto`, `resize`, `patch`, `hybrid`, `tta`). Processes both single and batch predictions.
 - **`app/strategies/`**: Contains modular inference strategies (Auto-Dispatcher, Baseline Resize, Native Patch Voting, Hybrid Consensus, 8-View TTA).
-- **`app/diagnostics/`**: Contains analytics modules (Shannon Entropy, Statistical Disagreement, 2D FFT Spectral scoring).
+- **`app/diagnostics/`**: Contains analytics modules (Shannon Entropy, Statistical Disagreement, 2D FFT Spectral scoring). Also contains **`explainer.py`** (Gemini explanation), **`metadata_inspector.py`** (C2PA/EXIF screening), and **`grad_cam.py`** (Heatmap generation).
+- **`model/`**: Contains the frozen weights (`best_resnet50_cifake_native32_2.pth`) and **`generator_attribution.py`** (Gemini-based Generator identification).
 - **`app/app.py`**: Streamlit web dashboard managing UI rendering, single/batch upload tabs, live diagnostic logits expanders, and CSV downloads.
 
 ---
