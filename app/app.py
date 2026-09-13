@@ -283,6 +283,13 @@ def main():
                 with st.spinner(f"Executing PyTorch inference ({selected_mode_key.upper()} mode)..."):
                     start_t = time.time()
                     
+                    import importlib
+                    import app.strategies.hybrid.hybrid_strategy
+                    import app.strategies.auto.auto_strategy
+                    importlib.reload(app.strategies.hybrid.hybrid_strategy)
+                    importlib.reload(app.strategies.auto.auto_strategy)
+                    from app.predictor import predict_image_auto
+
                     res = predict_image_auto(
                         image,
                         model=model,

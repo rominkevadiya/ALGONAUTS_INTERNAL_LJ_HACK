@@ -3,7 +3,7 @@ SignalScope Model Loader Module
 Loads and caches the trained ResNet-50 model checkpoint.
 """
 
-import os
+
 from pathlib import Path
 import torch
 import torch.nn as nn

@@ -6,7 +6,6 @@ from app.config import (
     PATCH_N,
     PATCH_AGGREGATION_DEFAULT,
     HYBRID_STRONG_DIFF,
-    HYBRID_PARTIAL_DIFF,
 )
 from app.model_loader import load_model
 from app.diagnostics.entropy import interpret_confidence
@@ -59,17 +58,10 @@ def predict_image_hybrid(
 
     diff = abs(resize_fake - patch_fake)
 
-    # Adaptive luminance threshold: relative to whole-image brightness
     import numpy as np
     img_array = np.array(clean_img.convert("L"), dtype=np.float32)
     img_mean_brightness = float(np.mean(img_array))
-    # Lit threshold = 40% of image mean brightness, clamped between 30 and 80
-    lit_threshold = max(30.0, min(80.0, img_mean_brightness * 0.40))
-
-    # Recompute lit_patch_fake with adaptive threshold (patch_res was computed with fixed threshold)
-    patch_fake_probs = patch_res.get("patch_fake_probs", [])
-    patches_raw = patch_res.get("_patches")
-    # Use the stored lit_patch_fake as best available signal; adaptive threshold corrects it at decision time
+    
     # Apply adaptive correction: if image is very dark overall, trust resize more
     dark_image = img_mean_brightness < 60.0
 
@@ -77,15 +69,25 @@ def predict_image_hybrid(
     # DECISION TREE
     # ─────────────────────────────────────────────────────────────────────────
 
+    # Rule 0: Extreme Localized AI Artifact Override
+    # High-res AI images (Gemini, Midjourney) often have smooth backgrounds (sky/walls) 
+    # that fool baseline resize, but contain severe AI artifacts in key patches (top_k >= 0.80).
+    if top_k_patch_fake >= 0.80 and not (dark_image and lit_patch_fake < 0.40):
+        hybrid_fake = float(max(0.60, top_k_patch_fake * 0.70 + resize_fake * 0.30))
+        hybrid_real = 1.0 - hybrid_fake
+        hybrid_label = "FAKE"
+        hybrid_confidence = hybrid_fake
+        agreement = "Extreme Local AI Artifacts Detected"
+
     # Branch 1: Baseline Resize is overwhelmingly REAL (resize_real >= 0.90)
-    if resize_real >= 0.90:
+    elif resize_real >= 0.90:
         if patch_res["label"] == "FAKE" or top_k_patch_fake >= 0.85:
             # Patch says FAKE or Extreme Artifacts exist. Determine if this is dark sensor noise or real AI artifact.
             is_natural_spectrum = fft_score < 0.40
             is_lit_artifact = lit_patch_fake >= 0.60 and not dark_image
             is_very_confident_real = resize_real >= 0.98
 
-            if is_very_confident_real or (is_natural_spectrum and not is_lit_artifact):
+            if (is_very_confident_real or (is_natural_spectrum and not is_lit_artifact)) and top_k_patch_fake < 0.85:
                 # Sensor noise / dark shadow false positive in a real photo
                 hybrid_fake = float(resize_fake * 0.80 + lit_patch_fake * 0.20)
                 hybrid_real = 1.0 - hybrid_fake
