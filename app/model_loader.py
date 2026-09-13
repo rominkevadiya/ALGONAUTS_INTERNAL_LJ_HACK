@@ -34,7 +34,7 @@ def _load_model_impl(target_path: Path) -> tuple[nn.Module, torch.device]:
     if not target_path.exists():
         raise FileNotFoundError(
             f"Model checkpoint file not found at: {target_path}. "
-            "Please ensure 'best_resnet50_cifake_native32.pth' exists in the model directory."
+            "Please ensure 'best_resnet50_cifake_native32_2.pth' exists in the model directory."
         )
 
     device = get_device()

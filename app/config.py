@@ -6,11 +6,7 @@ from pathlib import Path
 
 # Base Paths
 BASE_DIR = Path(__file__).resolve().parent.parent
-MODEL_PATH = BASE_DIR / "model" / "best_resnet50_cifake_native32.pth"
-if not MODEL_PATH.exists():
-    _fallback = BASE_DIR / "model" / "best_resnet50_cifake.pth"
-    if _fallback.exists():
-        MODEL_PATH = _fallback
+MODEL_PATH = BASE_DIR / "model" / "best_resnet50_cifake_native32_2.pth"
 EVALUATION_DIR = BASE_DIR / "evaluation"
 OUTPUTS_DIR = BASE_DIR / "outputs"
 
@@ -47,9 +43,10 @@ BENCHMARK_METRICS = {
     "Dataset": "CIFAKE",
     "Input Size": "32 x 32",
     "Classes": "FAKE, REAL",
-    "Test Accuracy": "97.42%",
-    "Macro F1 Score": "0.9741",
-    "ROC-AUC": "0.9964",
-    "PR-AUC": "0.9966",
-    "Inference Speed": "~1092 img/sec (GPU Batch)"
+    "Test Accuracy": "98.33%",
+    "Macro F1 Score": "0.9832",
+    "ROC-AUC": "0.9987",
+    "PR-AUC": "0.9988",
+    "Inference Speed": "~916 img/sec (GPU Batch)"
 }
+

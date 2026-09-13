@@ -32,13 +32,13 @@ The performance below was evaluated on the official **CIFAKE test dataset** (20,
 
 | Metric | Value |
 | :--- | :---: |
-| **Test Accuracy** | **97.42%** |
-| **Macro F1-Score** | **0.9741** |
-| **ROC-AUC** | **0.9964** |
-| **PR-AUC** | **0.9966** |
-| **Sensitivity (Recall)** | **97.00%** |
-| **Specificity** | **97.83%** |
-| **Inference Speed** | **~1092 img/sec (GPU Batch Inference)** |
+| **Test Accuracy** | **98.33%** |
+| **Macro F1-Score** | **0.9832** |
+| **ROC-AUC** | **0.9987** |
+| **PR-AUC** | **0.9988** |
+| **Sensitivity (Recall)** | **98.34%** |
+| **Specificity** | **98.31%** |
+| **Inference Speed** | **~916 img/sec (GPU Batch Inference)** |
 
 > [!WARNING]
 > **Dataset Domain Limitation**: This model was trained strictly on the **CIFAKE dataset** ($32 \times 32$ CIFAR-10 images upscaled to $224 \times 224$). High-resolution digital camera photographs or modern webcam photos possess different spatial frequency characteristics than CIFAR-10 real photos, which can cause modern webcam photos to trigger high `FAKE` activations due to dataset domain shift.

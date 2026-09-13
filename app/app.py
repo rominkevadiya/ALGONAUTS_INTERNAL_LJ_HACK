@@ -361,7 +361,7 @@ def main():
         ### SignalScope Pipeline Overview
         SignalScope uses a fine-tuned **ResNet-50** neural network trained on the **CIFAKE** dataset.
         
-        - **Input Resolution:** $224 \\times 224$ RGB Image
+        - **Input Resolution:** $32 \\times 32$ RGB Image (adapted native stem)
         - **Normalization:** ImageNet Mean `[0.485, 0.456, 0.406]`, Std `[0.229, 0.224, 0.225]`
         - **Optimizer:** AdamW ($1 \\times 10^{-4}$) with Cross-Entropy Loss
         """)
@@ -371,14 +371,14 @@ def main():
 
         m_col1, m_col2, m_col3 = st.columns(3)
         with m_col1:
-            st.metric("Test Accuracy", "97.42%")
-            st.metric("Macro F1 Score", "0.9741")
+            st.metric("Test Accuracy", BENCHMARK_METRICS.get("Test Accuracy", "98.33%"))
+            st.metric("Macro F1 Score", BENCHMARK_METRICS.get("Macro F1 Score", "0.9832"))
         with m_col2:
-            st.metric("ROC-AUC", "0.9964")
-            st.metric("PR-AUC", "0.9966")
+            st.metric("ROC-AUC", BENCHMARK_METRICS.get("ROC-AUC", "0.9987"))
+            st.metric("PR-AUC", BENCHMARK_METRICS.get("PR-AUC", "0.9988"))
         with m_col3:
-            st.metric("Sensitivity", "97.00%")
-            st.metric("Specificity", "97.83%")
+            st.metric("Sensitivity", "98.34%")
+            st.metric("Specificity", "98.31%")
 
         # Display evaluation plots if available
         outputs_dir = Path(__file__).resolve().parent.parent / "outputs"
