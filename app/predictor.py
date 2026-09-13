@@ -7,6 +7,15 @@ from app.diagnostics.entropy import (
     interpret_confidence,
     compute_prediction_entropy,
 )
+import time
+import logging
+
+# Configure terminal logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s | %(levelname)s | %(message)s')
+logger = logging.getLogger(__name__)
+
+from typing import Dict, Any
+
 from app.diagnostics.disagreement import (
     compute_prediction_disagreement,
 )
@@ -48,9 +57,39 @@ from app.strategies.multiscale.multiscale_strategy import (
     predict_image_multiscale,
 )
 from app.strategies.auto.auto_strategy import (
-    predict_image_auto,
+    predict_image_auto as _predict_image_auto,
     predict_batch,
 )
+
+def predict_image_auto(
+    image,
+    model=None,
+    device=None,
+    mode: str = "auto",
+    n_patches: int = 0,
+    seed: int = 42,
+    aggregation: str = "patch_vote",
+    precomputed_metadata: Dict[str, Any] = None
+):
+    """
+    Unified automatic dispatcher supporting modes: 'auto', 'multiscale', 'resize', 'patch', 'hybrid', 'tta'.
+    """
+    logger.info(f"🚀 Starting Inference | Requested Mode: {mode.upper()}")
+    start_time = time.time()
+    
+    result = _predict_image_auto(
+        image=image,
+        model=model,
+        device=device,
+        mode=mode,
+        n_patches=n_patches,
+        seed=seed,
+        aggregation=aggregation,
+        precomputed_metadata=precomputed_metadata
+    )
+    
+    logger.info(f"🏁 Final Result: {result}")
+    return result
 
 __all__ = [
     "interpret_confidence",

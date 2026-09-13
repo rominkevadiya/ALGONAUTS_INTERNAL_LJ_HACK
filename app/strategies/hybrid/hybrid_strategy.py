@@ -73,7 +73,7 @@ def predict_image_hybrid(
     # High-res AI images (Gemini, Midjourney) often have smooth backgrounds (sky/walls) 
     # that fool baseline resize, but contain severe AI artifacts in key patches.
     # ONLY trigger if resize is NOT overwhelmingly REAL (< 0.90) AND patch vote is strongly fake (>= 0.55).
-    if top_k_patch_fake >= 0.88 and resize_real < 0.90 and patch_fake >= 0.55 and not (dark_image and lit_patch_fake < 0.40):
+    if top_k_patch_fake >= 0.92 and resize_real < 0.90 and patch_fake >= 0.55 and fft_score >= 0.45 and not (dark_image and lit_patch_fake < 0.40):
         hybrid_fake = float(max(0.60, top_k_patch_fake * 0.70 + resize_fake * 0.30))
         hybrid_real = 1.0 - hybrid_fake
         hybrid_label = "FAKE"
@@ -82,19 +82,17 @@ def predict_image_hybrid(
 
     # Branch 1: Baseline Resize is overwhelmingly REAL (resize_real >= 0.90)
     elif resize_real >= 0.90:
-        if patch_fake >= 0.65 or (top_k_patch_fake >= 0.90 and patch_fake >= 0.60):
-            # Lit foreground patches show AI artifacts AND spectrum is irregular
+        if patch_fake >= 0.65 and top_k_patch_fake >= 0.92 and fft_score >= 0.50:
+            # Strong evidence from multiple patches AND spectral irregularity required to override a >90% REAL baseline
             hybrid_fake = float((resize_fake * 0.35 + top_k_patch_fake * 0.65))
-            if top_k_patch_fake >= 0.85 and hybrid_fake < 0.5:
-                hybrid_fake = float(top_k_patch_fake * 0.65 + resize_fake * 0.35)
             hybrid_real = 1.0 - hybrid_fake
             hybrid_label = "FAKE" if hybrid_fake > hybrid_real else "REAL"
             hybrid_confidence = hybrid_fake if hybrid_label == "FAKE" else hybrid_real
-            agreement = "Extreme Local AI Artifacts Detected" if top_k_patch_fake >= 0.85 else "Local AI Artifacts Detected"
+            agreement = "Extreme Local AI Artifacts Detected" if top_k_patch_fake >= 0.92 else "Local AI Artifacts Detected"
         else:
-            # Baseline resize is overwhelmingly REAL (>= 90%) and patch mean is <= 65%
+            # Baseline resize is overwhelmingly REAL (>= 90%) and patch artifacts are either weak or spectrally normal
             # High-frequency pattern texture (woven fabric/bedsheets/tablecloth/noise) in a real photo
-            hybrid_fake = float(resize_fake * 0.70 + patch_fake * 0.30)
+            hybrid_fake = float(resize_fake * 0.75 + patch_fake * 0.25)
             hybrid_real = 1.0 - hybrid_fake
             hybrid_label = "REAL"
             hybrid_confidence = hybrid_real
@@ -124,7 +122,7 @@ def predict_image_hybrid(
     # Branch 3: Moderate REAL from Baseline (0.50 <= resize_real < 0.90)
     else:
         # Override to FAKE if extreme localized artifacts exist (top_k >= 85%), OR if patch is FAKE and has strong artifacts
-        if top_k_patch_fake >= 0.85 or (patch_res["label"] == "FAKE" and (top_k_patch_fake >= 0.70 or (patch_fake - resize_fake) >= 0.30)):
+        if (top_k_patch_fake >= 0.90 and fft_score >= 0.45) or (patch_res["label"] == "FAKE" and (top_k_patch_fake >= 0.75 or (patch_fake - resize_fake) >= 0.35)):
             # Strong localized AI artifacts; FFT boosts or confirms
             fft_boost = 0.05 if fft_score >= 0.45 else 0.0
             
@@ -132,13 +130,13 @@ def predict_image_hybrid(
             hybrid_fake = float(min(1.0, max(patch_fake, (resize_fake + top_k_patch_fake) / 2.0) + fft_boost))
             
             # If it triggered via the top_k override (mean patch might be REAL), guarantee it leans FAKE
-            if top_k_patch_fake >= 0.85 and hybrid_fake < 0.5:
+            if top_k_patch_fake >= 0.90 and hybrid_fake < 0.5:
                 hybrid_fake = float(top_k_patch_fake * 0.65 + resize_fake * 0.35 + fft_boost)
                 
             hybrid_real = 1.0 - hybrid_fake
             hybrid_label = "FAKE" if hybrid_fake > hybrid_real else "REAL"
             hybrid_confidence = hybrid_fake if hybrid_label == "FAKE" else hybrid_real
-            agreement = "Extreme Local AI Artifacts Detected" if top_k_patch_fake >= 0.85 else "Local AI Artifacts Detected"
+            agreement = "Extreme Local AI Artifacts Detected" if top_k_patch_fake >= 0.90 else "Local AI Artifacts Detected"
         elif fft_score >= 0.65 and patch_res["label"] == "FAKE":
             # FFT alone indicates highly irregular frequency pattern (strong AI generation signal)
             hybrid_fake = float((resize_fake + patch_fake + fft_score) / 3.0)
@@ -220,4 +218,3 @@ class HybridStrategy(BaseStrategy):
 
 # Register strategy with StrategyRegistry
 register_strategy(HybridStrategy())
-

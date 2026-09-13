@@ -3,11 +3,15 @@ from typing import Dict, Any, List
 from PIL import Image
 import torch
 import pandas as pd
+import logging
+
+logger = logging.getLogger(__name__)
 
 from app.config import (
     DEFAULT_INFERENCE_MODE,
     INFERENCE_MODES,
     PATCH_AGGREGATION_DEFAULT,
+    METADATA_OVERRIDE_CONFIDENCE_CAP,
 )
 from app.model_loader import load_model
 from app.diagnostics.entropy import compute_prediction_entropy
@@ -31,7 +35,8 @@ def predict_image_auto(
     mode: str = DEFAULT_INFERENCE_MODE,
     n_patches: int = 0,  # 0 enables dynamic patch count based on resolution
     seed: int = 42,
-    aggregation: str = PATCH_AGGREGATION_DEFAULT
+    aggregation: str = PATCH_AGGREGATION_DEFAULT,
+    precomputed_metadata: Dict[str, Any] = None
 ) -> Dict[str, Any]:
     """
     Unified automatic dispatcher supporting modes: 'auto', 'multiscale', 'resize', 'patch', 'hybrid', 'tta'.
@@ -40,6 +45,8 @@ def predict_image_auto(
     w, h = clean_img.size
     min_dim = min(w, h)
     max_dim = max(w, h)
+    
+    logger.info(f"Image Resolution: {w}x{h}")
 
     # Resolution & context-aware automatic selection logic
     selected_mode = mode
@@ -53,37 +60,45 @@ def predict_image_auto(
 
 
     # Compute FFT once at the dispatcher level for hybrid/auto to avoid double computation
+    logger.info("Computing 2D FFT Spectral Diagnostic...")
     fft_diagnostic = compute_fft_spectral_diagnostic(clean_img)
 
-    # Check Stage 1 Metadata & C2PA Provenance before deep learning inference
-    from app.diagnostics.metadata_inspector import inspect_image_metadata
-    meta_diagnostic = inspect_image_metadata(clean_img)
+    # Use precomputed metadata if provided (preserves C2PA manifest from raw_bytes), otherwise compute it
+    logger.info("Checking Metadata & C2PA Provenance...")
+    if precomputed_metadata is not None:
+        meta_diagnostic = precomputed_metadata
+    else:
+        from app.diagnostics.metadata_inspector import inspect_image_metadata
+        meta_diagnostic = inspect_image_metadata(clean_img)
 
     # Short-circuit if verified AI metadata or C2PA manifest is present
     if meta_diagnostic["provenance_verdict"] == "AI_GENERATED":
         source_id = meta_diagnostic.get("source_identified") or "AI Generator Provenance Tag"
+        capped_fake = METADATA_OVERRIDE_CONFIDENCE_CAP
         res = {
             "label": "FAKE",
-            "confidence": 1.00,
-            "fake_probability": 1.00,
-            "real_probability": 0.00,
+            "confidence": capped_fake,
+            "fake_probability": capped_fake,
+            "real_probability": round(1.00 - capped_fake, 4),
             "inference_mode": "metadata_provenance",
-            "agreement": f"C2PA / AI Provenance Verified ({source_id})",
+            "agreement": f"C2PA / AI Provenance Match ({source_id})",
             "entropy": 0.0,
             "normalized_entropy": 0.0,
-            "uncertainty_level": "Certain (100% Verified)",
-            "uncertainty_note": f"Image contains verified digital AI metadata: {source_id}. PyTorch model execution short-circuited.",
+            "uncertainty_level": "High Confidence (Metadata Match)",
+            "uncertainty_note": f"Image contains AI-related metadata: {source_id}. This is a strong but spoofable/removable signal, "
+                                 f"so PyTorch model execution was short-circuited with a capped (not absolute) confidence.",
             "fft_diagnostic": fft_diagnostic,
             "metadata_diagnostic": meta_diagnostic,
             "image_dimensions": f"{w} x {h}",
             "confidence_info": {
                 "level": "High Confidence",
                 "color": "#ef4444",
-                "badge": "🤖 C2PA / AI PROVENANCE VERIFIED"
+                "badge": "🤖 C2PA / AI PROVENANCE MATCH"
             }
         }
         return validate_strategy_output(res, strategy_name="auto_metadata")
 
+    logger.info(f"Executing Deep Learning Model in Mode: {selected_mode.upper()}")
     if selected_mode == "resize":
         result = predict_image(clean_img, model=model, device=device)
     elif selected_mode == "patch":
@@ -195,4 +210,3 @@ def predict_batch(
             })
 
     return pd.DataFrame(results)
-

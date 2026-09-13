@@ -21,6 +21,8 @@ if str(ROOT_DIR) not in sys.path:
 from PIL import Image
 import numpy as np
 import pandas as pd
+import warnings
+warnings.filterwarnings("ignore", message=".*Direct use of automatic function calling.*")
 import streamlit as st
 import torch
 import torch.nn.functional as F
@@ -254,6 +256,11 @@ def main():
                 type=["jpg", "jpeg", "png"],
                 help="Upload an image to run live model inference."
             )
+            
+            caption_input = st.text_area(
+                "Optional Caption / Claim",
+                help="If the image has a caption or claim (e.g. 'Handmade ceramic mug'), enter it here to test Multimodal Image+Text consistency."
+            )
 
             if uploaded_file is not None:
                 try:
@@ -296,17 +303,18 @@ def main():
                         st.info("💡 **Neural Network Perspective:** This 32×32 pixel image is the exact bicubic downscaled input fed into the baseline ResNet-50 model stem. Notice how fine pixel textures are compressed.")
 
                     st.markdown("<br>", unsafe_allow_html=True)
-                    analyze_clicked = st.button("🔎 Analyze Image", type="primary", width="stretch")
+                    if st.button("🔎 Analyze Image", type="primary", width="stretch"):
+                        st.session_state.analyze_clicked = True
                 else:
-                    analyze_clicked = False
+                    st.session_state.analyze_clicked = False
             else:
                 st.info("Upload an image on the left to begin analysis.")
-                analyze_clicked = False
+                st.session_state.analyze_clicked = False
 
         with col_output:
             st.subheader("🎯 Inference & Diagnostic Output")
 
-            if uploaded_file is not None and analyze_clicked:
+            if uploaded_file is not None and st.session_state.get("analyze_clicked", False):
                 mode_str = str(selected_mode_key or "auto").upper()
                 with st.spinner(f"Executing PyTorch inference ({mode_str} mode)..."):
                     start_t = time.time()
@@ -319,7 +327,8 @@ def main():
                         mode=selected_mode_key or "auto",
                         n_patches=patch_n_val,
                         seed=int(seed_val),
-                        aggregation=aggregation_val
+                        aggregation=aggregation_val,
+                        precomputed_metadata=pre_meta
                     )
                     elapsed_ms = (time.time() - start_t) * 1000
 
@@ -369,6 +378,28 @@ def main():
                     st.metric("Real Probability", f"{real_prob * 100:.2f}%")
                     st.progress(real_prob)
 
+                # --------------------------------------------------
+                # Module B: Generator Attribution
+                # --------------------------------------------------
+                if label == "FAKE" or fake_prob > 0.5:
+                    st.markdown("<br>", unsafe_allow_html=True)
+                    st.subheader("🕵️‍♂️ Generator Attribution")
+                    with st.spinner("Analyzing artifacts to determine generator family..."):
+                        try:
+                            from model.generator_attribution import predict_generator_attribution
+                            attribution = predict_generator_attribution(image)
+                            
+                            a_col1, a_col2 = st.columns(2)
+                            with a_col1:
+                                st.metric("Likely Generator Family", attribution.get("family", "Unknown"))
+                            with a_col2:
+                                st.metric("Specific Model", attribution.get("specific_model", "Unknown"))
+                            
+                            st.caption(f"**Attribution Note:** {attribution.get('note', '')}")
+                        except ImportError:
+                            st.warning("Generator attribution module not found.")
+
+
                 # Disclaimer
                 st.caption("🛡️ Confidence reflects model certainty under the selected strategy, not an absolute guarantee.")
 
@@ -376,8 +407,8 @@ def main():
                 # Diagnostics Expander
                 # --------------------------------------------------
                 with st.expander("🔬 Comprehensive Diagnostics & Stability Analysis", expanded=True):
-                    d_tab1, d_tab2, d_tab3, d_tab4, d_tab5, d_tab6 = st.tabs([
-                        "📊 Output & Entropy", "🧩 Patch Stability", "⚖️ Hybrid Comparison", "🌀 FFT Diagnostic", "📜 C2PA & Metadata", "🎯 Inference Regions"
+                    d_tab1, d_tab2, d_tab3, d_tab4, d_tab5, d_tab6, d_tab7, d_tab8 = st.tabs([
+                        "📊 Output & Entropy", "🧩 Patch Stability", "⚖️ Hybrid Comparison", "🌀 FFT Diagnostic", "📜 C2PA & Metadata", "🎯 Inference Regions", "🧠 AI Explanation", "🛡️ Live Degradation Test"
                     ])
 
                     # Sub-Tab 1: Output & Entropy
@@ -490,7 +521,8 @@ def main():
                         st.write("📜 **Extracted EXIF / PNG Header Summary:**")
                         m_summary = meta_data.get("metadata_summary", {})
                         if m_summary:
-                            st.json(m_summary)
+                            for key, val in m_summary.items():
+                                st.markdown(f"- **{key}**: `{val}`")
                         else:
                             st.info("No EXIF or PNG metadata headers detected in file (metadata unpopulated or stripped).")
 
@@ -512,12 +544,91 @@ def main():
                         if regions:
                             from app.diagnostics.bounding_box import render_highlighted_regions
                             boxed_image = render_highlighted_regions(image, regions)
-                            st.image(boxed_image, caption="Highlighted High-Scoring AI Inference Regions", width="stretch")
-                            st.markdown("---")
+                            
                             st.write("📋 **Highlighted Region Data:**")
                             st.dataframe(pd.DataFrame(regions), width="stretch")
+                            
+                            st.markdown("---")
+                            st.caption("🔥 **ResNet-50 Grad-CAM Heatmap:** Visualizes network activation hotspots for the FAKE class.")
+                            from app.diagnostics.grad_cam import run_grad_cam
+                            with st.spinner("Generating Grad-CAM..."):
+                                try:
+                                    cam_image = run_grad_cam(model, image, target_class=0)
+                                except Exception as e:
+                                    st.error(f"Grad-CAM generation failed: {e}")
+                                    cam_image = None
+                            
+                            col_b1, col_b2 = st.columns(2)
+                            with col_b1:
+                                st.image(boxed_image, caption="Bounding Box Localization", use_container_width=True)
+                            with col_b2:
+                                if cam_image:
+                                    st.image(cam_image, caption="Grad-CAM Activation", use_container_width=True)
                         else:
                             st.success("✅ No localized suspicious AI patch regions detected above 50% fake threshold.")
+
+                    # Sub-Tab 7: Faithful Explanation (Gemini API)
+                    with d_tab7:
+                        st.subheader("🤖 Faithful Explanation (Gemini Vision)")
+                        st.write("Generating a human-readable explanation for the visual cues behind the verdict...")
+                        
+                        from app.diagnostics.explainer import generate_faithful_explanation
+                        with st.spinner("Analyzing visual cues and multimodal consistency..."):
+                            explanation_data = generate_faithful_explanation(
+                                image=image,
+                                prediction_label=label,
+                                regions=regions,
+                                caption=caption_input if caption_input else None,
+                                diagnostic_context=res
+                            )
+                        
+                        st.markdown(f"**Explanation:**\n> {explanation_data.get('explanation')}")
+                        
+                        if caption_input:
+                            st.markdown("---")
+                            st.write("📝 **Multimodal Image-Text Consistency**")
+                            c_score = explanation_data.get('consistency_score')
+                            if c_score is not None:
+                                st.metric("Consistency Score (0 to 1)", f"{c_score:.2f}")
+                            st.write(f"**Note:** {explanation_data.get('consistency_note')}")
+                            
+                    # Sub-Tab 8: Live Degradation Test
+                    with d_tab8:
+                        st.subheader("🛡️ Live Robustness Check")
+                        st.write("Test if the current verdict holds up against severe JPEG compression (Quality: 30) on-the-fly.")
+                        
+                        if st.button("Run Live JPEG Compression Test"):
+                            from io import BytesIO
+                            with st.spinner("Compressing and re-evaluating..."):
+                                buf = BytesIO()
+                                image.convert("RGB").save(buf, format="JPEG", quality=30)
+                                buf.seek(0)
+                                comp_img = Image.open(buf).convert("RGB")
+                                comp_res = predict_image_auto(
+                                    comp_img,
+                                    model=model,
+                                    device=device,
+                                    mode=selected_mode_key or "auto",
+                                    n_patches=patch_n_val,
+                                    seed=int(seed_val),
+                                    aggregation=aggregation_val
+                                )
+                                comp_prob = comp_res.get("fake_probability", 0.0)
+                                orig_prob = res.get("fake_probability", 0.0)
+                                
+                                st.markdown("### Robustness Results")
+                                r_col1, r_col2 = st.columns(2)
+                                with r_col1:
+                                    st.metric("Original Fake Prob", f"{orig_prob*100:.2f}%")
+                                with r_col2:
+                                    delta = (comp_prob - orig_prob) * 100
+                                    st.metric("Compressed Fake Prob", f"{comp_prob*100:.2f}%", delta=f"{delta:.2f}%")
+                                
+                                if (orig_prob >= 0.5 and comp_prob >= 0.5) or (orig_prob < 0.5 and comp_prob < 0.5):
+                                    st.success("✅ Verdict is stable under severe degradation.")
+                                else:
+                                    st.error("❌ Verdict flipped under degradation. Model is sensitive.")
+
 
             elif uploaded_file is not None:
                 st.info("Click **Analyze Image** above to run the PyTorch inference & diagnostics engine.")

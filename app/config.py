@@ -73,6 +73,14 @@ ENTROPY_HIGH_THRESHOLD = 0.5
 HYBRID_STRONG_DIFF = 0.15
 HYBRID_PARTIAL_DIFF = 0.30
 
+# Metadata/C2PA provenance short-circuit cap.
+# A single EXIF/PNG-info string match (e.g. "midjourney") is a strong signal but is
+# also the easiest thing for a user to spoof (write the string into a real photo's
+# EXIF) or evade (strip metadata from an AI image before upload). Capping below 1.00
+# keeps this path honest about being a heuristic rather than a verified certainty,
+# without changing when the short-circuit fires.
+METADATA_OVERRIDE_CONFIDENCE_CAP = 0.97
+
 # Disclaimer Messages
 DISCLAIMER_TEXT = (
     "SignalScope is an AI-based screening tool. It should not be treated as "
@@ -111,5 +119,3 @@ def load_dynamic_benchmark_metrics():
     }
 
 BENCHMARK_METRICS = load_dynamic_benchmark_metrics()
-
-
