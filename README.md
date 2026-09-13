@@ -15,9 +15,9 @@ SignalScope is a local inference application designed to screen images and class
 - **A. Faithful Explanation:** Natural language explanations of visual cues via Gemini 2.5 API.
 - **B. Generator Attribution:** Multi-class generator family identification (Diffusion/GAN) via Gemini API.
 - **C. Robustness to Degradation:** Empirical testing against JPEG compression and resizing.
-- **D. Provenance & Metadata:** Exif and C2PA pre-screening.
+- **D. Provenance & Metadata:** Exif and C2PA pre-screening with pipeline short-circuiting for verified AI images.
 - **E. Multimodal (Image + Text):** Consistency checking between provided captions and image content.
-- **F. Real-Time / Deployable:** Full Streamlit interactive interface.
+- **F. Real-Time / Deployable:** Full Streamlit interactive interface with backend Live Terminal Logging.
 - **G. Active Defence Analysis:** Adversarial FGSM attack robustness analysis.
 
 ---
@@ -30,8 +30,8 @@ SignalScope is a local inference application designed to screen images and class
 - **Test-Time Augmentation (TTA):** Generates 8 semantically meaningful geometric and photometric views without retraining, aggregating results using an **inverse-entropy weighting** system to prioritize high-confidence views.
 - **Resolution-Aware Automatic Dispatch:** Automatically routes images to the optimal inference strategy based on resolution (`Resize` <64px, `Patch` 64-256px, `Hybrid` >256px).
 - **Normalized Shannon Entropy Diagnostics:** Computes output uncertainty $H(p) / \ln(2)$ to identify predictions near the decision boundary.
-- **Experimental 2D FFT Spectral Diagnostic:** Analyzes radial power spectrum and frequency irregularities. Wired directly into the Hybrid strategy to confirm localized AI artifacts.
-- **Streamlit Web UI:** Interactive single-image analysis with binned patch probability histograms and batch image upload with CSV export.
+- **Experimental 2D FFT Spectral Diagnostic:** Analyzes radial power spectrum and frequency irregularities. Wired directly into the Hybrid strategy to confirm localized AI artifacts and suppress false positives on woven textures.
+- **Streamlit Web UI & Live Logging:** Interactive single-image analysis with binned patch probability histograms, real-time backend terminal logging for diagnostic visibility, and batch image upload with CSV export.
 ---
 
 ## ⚙️ Inference Modes & Usage Guide
