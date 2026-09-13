@@ -265,11 +265,23 @@ def main():
                     image = None
 
                 if image is not None:
-                    st.image(image, caption=f"Preview: {uploaded_file.name}", width="stretch")
                     width, height = image.size
-                    st.caption(f"**Filename:** `{uploaded_file.name}` | **Resolution:** {width} × {height} px | **Mode:** {image.mode}")
                     
-                    analyze_clicked = st.button("🔎 Analyze Image", type="primary", width="stretch")
+                    # Create 32x32 model input representation using bicubic interpolation matching PyTorch pipeline
+                    from app.strategies.patch.patch_extractor import prepare_image
+                    clean_image_input = prepare_image(image)
+                    image_32 = clean_image_input.resize((32, 32), Image.Resampling.BICUBIC)
+
+                    v_tab1, v_tab2 = st.tabs(["🖼️ Original Preview", "🔬 ResNet-50 Input (32×32 px)"])
+                    with v_tab1:
+                        st.image(image, caption=f"Original High-Res Preview: {uploaded_file.name}", use_container_width=True)
+                        st.caption(f"**Filename:** `{uploaded_file.name}` | **Resolution:** {width} × {height} px | **Mode:** {image.mode}")
+                    with v_tab2:
+                        st.image(image_32, caption="ResNet-50 Stem Input (Exact 32×32 px Bicubic Downscale)", use_container_width=True)
+                        st.info("💡 **Neural Network Perspective:** This 32×32 pixel image is the exact bicubic downscaled input fed into the baseline ResNet-50 model stem. Notice how fine pixel textures are compressed.")
+
+                    st.markdown("<br>", unsafe_allow_html=True)
+                    analyze_clicked = st.button("🔎 Analyze Image", type="primary", use_container_width=True)
                 else:
                     analyze_clicked = False
             else:
