@@ -1,7 +1,8 @@
 import random
 import math
 from typing import List, Tuple
-from PIL import Image, ImageOps
+from PIL import Image, ImageOps, ImageStat
+import numpy as np
 import torch
 from torchvision import transforms
 
@@ -79,8 +80,8 @@ def extract_native_patches(
 ) -> Tuple[List[Image.Image], List[Tuple[int, int, int, int]]]:
     """
     Extracts native-resolution patch crops from the original image.
-    Uses a local deterministic random generator (rng = random.Random(seed)).
-    Combines center crop, 4 corner crops, grid crops, and random crops.
+    Uses dynamic patch count based on resolution if n_patches is set to 0.
+    Combines center crop, corner crops, grid crops, and variance-guided random crops.
     """
     clean_image = prepare_image(image)
     w, h = clean_image.size
@@ -88,6 +89,11 @@ def extract_native_patches(
 
     if w < pw or h < ph:
         return [clean_image], [(0, 0, w, h)]
+
+    # Dynamic patch count scaling based on resolution
+    if n_patches == 0:
+        # Scale up to 64 patches for 1080p+, down to 16 for small images
+        n_patches = max(16, min(64, int((w * h) / (512 * 512) * 32)))
 
     rng = random.Random(seed)
     crops: List[Image.Image] = []
@@ -122,16 +128,30 @@ def extract_native_patches(
         for gy in y_steps:
             add_crop(gx, gy)
 
-    # 4. Fill remaining with random crops
-    attempts = 0
-    max_attempts = n_patches * 10
-    while len(crops) < n_patches and attempts < max_attempts:
-        rx = rng.randint(0, w - pw)
-        ry = rng.randint(0, h - ph)
-        add_crop(rx, ry)
-        attempts += 1
+    # 4. Variance-guided random crops (prefer high texture areas)
+    # Generate random candidates, pick those with highest variance
+    needed = max(0, n_patches - len(crops))
+    if needed > 0:
+        candidates = []
+        for _ in range(needed * 5):  # Sample 5x candidates
+            rx = rng.randint(0, w - pw)
+            ry = rng.randint(0, h - ph)
+            box = (rx, ry, rx + pw, ry + ph)
+            if box not in seen_coords:
+                # Fast variance approximation using ImageStat
+                region = clean_image.crop(box)
+                stat = ImageStat.Stat(region)
+                variance = sum(stat.var)
+                candidates.append((variance, box, region))
+        
+        # Sort by variance descending and pick top 'needed'
+        candidates.sort(key=lambda x: x[0], reverse=True)
+        for _, box, region in candidates[:needed]:
+            seen_coords.add(box)
+            crops.append(region)
+            coords.append(box)
 
-    # If still fewer, duplicate with random crops
+    # If still fewer (due to tiny image/duplicates), pad with pure random crops
     while len(crops) < n_patches:
         rx = rng.randint(0, max(0, w - pw))
         ry = rng.randint(0, max(0, h - ph))

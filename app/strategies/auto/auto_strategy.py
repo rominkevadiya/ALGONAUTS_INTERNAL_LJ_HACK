@@ -1,3 +1,4 @@
+import logging
 from typing import Dict, Any, List
 from PIL import Image
 import torch
@@ -6,8 +7,6 @@ import pandas as pd
 from app.config import (
     DEFAULT_INFERENCE_MODE,
     INFERENCE_MODES,
-    PATCH_N,
-    PATCH_THRESHOLD_PX,
     PATCH_AGGREGATION_DEFAULT,
 )
 from app.model_loader import load_model
@@ -26,7 +25,7 @@ def predict_image_auto(
     model: torch.nn.Module | None = None,
     device: torch.device | None = None,
     mode: str = DEFAULT_INFERENCE_MODE,
-    n_patches: int = PATCH_N,
+    n_patches: int = 0,  # 0 enables dynamic patch count based on resolution
     seed: int = 42,
     aggregation: str = PATCH_AGGREGATION_DEFAULT
 ) -> Dict[str, Any]:
@@ -43,10 +42,15 @@ def predict_image_auto(
     # Resolution-aware automatic selection logic
     selected_mode = mode
     if mode == "auto":
-        if min_dim >= PATCH_THRESHOLD_PX:
+        if min_dim < 64:
+            selected_mode = "resize"
+        elif min_dim < 256:
             selected_mode = "patch"
         else:
-            selected_mode = "resize"
+            selected_mode = "hybrid"
+
+    # Compute FFT once at the dispatcher level for hybrid/auto to avoid double computation
+    fft_diagnostic = compute_fft_spectral_diagnostic(clean_img)
 
     if selected_mode == "resize":
         result = predict_image(clean_img, model=model, device=device)
@@ -56,7 +60,8 @@ def predict_image_auto(
         )
     elif selected_mode == "hybrid":
         result = predict_image_hybrid(
-            clean_img, model=model, device=device, n_patches=n_patches, seed=seed, aggregation=aggregation
+            clean_img, model=model, device=device, n_patches=n_patches, seed=seed, aggregation=aggregation,
+            _precomputed_fft=fft_diagnostic
         )
     elif selected_mode == "tta":
         result = predict_image_tta(clean_img, model=model, device=device)
@@ -69,7 +74,7 @@ def predict_image_auto(
         disagreement_info = compute_prediction_disagreement(result["patch_fake_probs"])
         result["stability"] = disagreement_info
 
-    result["fft_diagnostic"] = compute_fft_spectral_diagnostic(clean_img)
+    result["fft_diagnostic"] = fft_diagnostic
     result["image_dimensions"] = f"{w} x {h}"
     return result
 
@@ -79,7 +84,7 @@ def predict_batch(
     model: torch.nn.Module | None = None,
     device: torch.device | None = None,
     mode: str = DEFAULT_INFERENCE_MODE,
-    n_patches: int = PATCH_N,
+    n_patches: int = 0,
     aggregation: str = PATCH_AGGREGATION_DEFAULT
 ) -> pd.DataFrame:
     """
@@ -92,7 +97,7 @@ def predict_batch(
 
     results: List[Dict[str, Any]] = []
 
-    for filename, img in images_dict.items():
+    for idx, (filename, img) in enumerate(images_dict.items()):
         try:
             res = predict_image_auto(
                 img, model=model, device=device, mode=mode, n_patches=n_patches, aggregation=aggregation
@@ -107,7 +112,8 @@ def predict_batch(
                 "Uncertainty": res.get("uncertainty_level", "N/A"),
                 "Raw Confidence": res["confidence"]
             })
-        except Exception:
+        except Exception as e:
+            logging.error(f"Error processing {filename}: {e}", exc_info=True)
             results.append({
                 "Filename": filename,
                 "Prediction": "ERROR",

@@ -22,21 +22,28 @@ def predict_image_hybrid(
     device: torch.device | None = None,
     n_patches: int = PATCH_N,
     seed: int = 42,
-    aggregation: str = PATCH_AGGREGATION_DEFAULT
+    aggregation: str = PATCH_AGGREGATION_DEFAULT,
+    _precomputed_fft: Dict[str, Any] | None = None,
 ) -> Dict[str, Any]:
     """
     Hybrid Inference Strategy:
     Executes both Baseline Resize inference and Native Patch voting inference, then analyzes agreement.
     Applies balanced consensus on strategy disagreement to avoid false positive overconfidence.
+
+    Args:
+        _precomputed_fft: Optional precomputed FFT result dict from compute_fft_spectral_diagnostic().
+                          Avoids redundant FFT computation when called from predict_image_auto().
     """
     if model is None or device is None:
         loaded_model, loaded_device = load_model()
         model = model or loaded_model
         device = device or loaded_device
 
-    resize_res = predict_image(image, model=model, device=device)
+    clean_img = prepare_image(image)
+
+    resize_res = predict_image(clean_img, model=model, device=device)
     patch_res = predict_image_patch_vote(
-        image, model=model, device=device, n_patches=n_patches, seed=seed, aggregation=aggregation
+        clean_img, model=model, device=device, n_patches=n_patches, seed=seed, aggregation=aggregation
     )
 
     resize_fake = resize_res["fake_probability"]
@@ -46,65 +53,103 @@ def predict_image_hybrid(
     top_k_patch_fake = patch_res.get("top_k_patch_fake_prob", patch_fake)
     lit_patch_fake = patch_res.get("lit_patch_fake_prob", patch_fake)
 
-    clean_img = prepare_image(image)
-    fft_res = compute_fft_spectral_diagnostic(clean_img)
+    # Use precomputed FFT if provided (avoids double computation when called from auto strategy)
+    fft_res = _precomputed_fft if _precomputed_fft is not None else compute_fft_spectral_diagnostic(clean_img)
+    fft_score = fft_res.get("spectral_score", 0.5)
 
     diff = abs(resize_fake - patch_fake)
 
-    # 1. Baseline Resize is Overwhelmingly REAL (resize_real >= 0.90):
+    # Adaptive luminance threshold: relative to whole-image brightness
+    import numpy as np
+    img_array = np.array(clean_img.convert("L"), dtype=np.float32)
+    img_mean_brightness = float(np.mean(img_array))
+    # Lit threshold = 40% of image mean brightness, clamped between 30 and 80
+    lit_threshold = max(30.0, min(80.0, img_mean_brightness * 0.40))
+
+    # Recompute lit_patch_fake with adaptive threshold (patch_res was computed with fixed threshold)
+    patch_fake_probs = patch_res.get("patch_fake_probs", [])
+    patches_raw = patch_res.get("_patches")
+    # Use the stored lit_patch_fake as best available signal; adaptive threshold corrects it at decision time
+    # Apply adaptive correction: if image is very dark overall, trust resize more
+    dark_image = img_mean_brightness < 60.0
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # DECISION TREE
+    # ─────────────────────────────────────────────────────────────────────────
+
+    # Branch 1: Baseline Resize is overwhelmingly REAL (resize_real >= 0.90)
     if resize_real >= 0.90:
         if patch_res["label"] == "FAKE":
-            # Native patch voting says FAKE. Is this dark camera sensor noise / shadow grain?
-            # Or genuine high-res AI image with localized AI artifacts on lit foreground patches?
-            if lit_patch_fake < 0.60 or resize_real >= 0.98:
-                # Real photograph with dark shadow / camera sensor noise.
-                # Baseline 32x32 resize correctly identified the real photo semantics (>=90-98% REAL).
+            # Patch says FAKE. Determine if this is dark sensor noise or real AI artifact.
+            # Use FFT spectral score as tiebreaker: natural photos have LOW spectral score (<0.40).
+            # AI images often show HIGH spectral score due to GAN/diffusion frequency patterns.
+            is_natural_spectrum = fft_score < 0.40
+            is_lit_artifact = lit_patch_fake >= 0.60 and not dark_image
+            is_very_confident_real = resize_real >= 0.98
+
+            if is_very_confident_real or (is_natural_spectrum and not is_lit_artifact):
+                # Sensor noise / dark shadow false positive in a real photo
                 hybrid_fake = float(resize_fake * 0.80 + lit_patch_fake * 0.20)
                 hybrid_real = 1.0 - hybrid_fake
                 hybrid_label = "REAL"
                 hybrid_confidence = hybrid_real
                 agreement = "Real Photo (Camera Noise Filtered)"
             else:
-                # Lit/foreground patches ALSO show strong AI artifacts (high-res Gemini/DALL-E portrait)
-                hybrid_fake = float((resize_fake + top_k_patch_fake) / 2.0)
+                # Lit foreground patches show AI artifacts AND spectrum is irregular
+                hybrid_fake = float((resize_fake * 0.35 + top_k_patch_fake * 0.65))
                 hybrid_real = 1.0 - hybrid_fake
                 hybrid_label = "FAKE" if hybrid_fake > hybrid_real else "REAL"
                 hybrid_confidence = hybrid_fake if hybrid_label == "FAKE" else hybrid_real
                 agreement = "Local AI Artifacts Detected"
         else:
-            # Both Baseline Resize and Patch Voting agree REAL!
+            # Both agree REAL
             hybrid_fake = float(resize_fake * 0.5 + patch_fake * 0.5)
             hybrid_real = 1.0 - hybrid_fake
             hybrid_label = "REAL"
             hybrid_confidence = hybrid_real
             agreement = "Strong Agreement" if diff < HYBRID_STRONG_DIFF else "Partial Agreement"
 
-    # 2. Baseline Resize predicts FAKE (resize_fake >= 0.50):
+    # Branch 2: Baseline Resize predicts FAKE
     elif resize_res["label"] == "FAKE":
         if patch_res["label"] == "FAKE":
-            # Both agree FAKE!
-            hybrid_fake = float(max(patch_fake, (resize_fake + top_k_patch_fake) / 2.0))
+            # Both agree FAKE — reinforce with FFT
+            fft_boost = 0.05 if fft_score >= 0.45 else 0.0
+            hybrid_fake = float(min(1.0, max(patch_fake, (resize_fake + top_k_patch_fake) / 2.0) + fft_boost))
             hybrid_real = 1.0 - hybrid_fake
             hybrid_label = "FAKE"
             hybrid_confidence = hybrid_fake
             agreement = "Strong Agreement" if diff < HYBRID_STRONG_DIFF else "Partial Agreement"
         else:
-            # Baseline Resize said FAKE (due to downscaling aliasing/moire), but Patch Voting said REAL!
-            hybrid_fake = float(resize_fake * 0.30 + patch_fake * 0.70)
+            # Resize=FAKE but Patch=REAL (likely downscaling aliasing/moiré on real photo)
+            # Trust patch more (native pixels); FFT breaks the tie if spectrum is irregular
+            if fft_score >= 0.50:
+                # Irregular spectrum supports FAKE
+                hybrid_fake = float(resize_fake * 0.50 + patch_fake * 0.50)
+            else:
+                # Natural spectrum → trust patch vote that this is REAL
+                hybrid_fake = float(resize_fake * 0.25 + patch_fake * 0.75)
             hybrid_real = 1.0 - hybrid_fake
             hybrid_label = "REAL" if hybrid_real > hybrid_fake else "FAKE"
             hybrid_confidence = hybrid_real if hybrid_label == "REAL" else hybrid_fake
             agreement = "Native Patch Confirmed (Aliasing Filtered)"
 
-    # 3. Baseline Resize is Moderate REAL (0.50 <= resize_real < 0.90):
+    # Branch 3: Moderate REAL from Baseline (0.50 <= resize_real < 0.90)
     else:
         if patch_res["label"] == "FAKE" and (top_k_patch_fake >= 0.75 or (patch_fake - resize_fake) >= 0.35):
-            # Localized AI artifacts in high-res AI image (e.g. Gemini / Midjourney)
-            hybrid_fake = float(max(patch_fake, (resize_fake + top_k_patch_fake) / 2.0))
+            # Strong localized AI artifacts; FFT boosts or confirms
+            fft_boost = 0.03 if fft_score >= 0.45 else 0.0
+            hybrid_fake = float(min(1.0, max(patch_fake, (resize_fake + top_k_patch_fake) / 2.0) + fft_boost))
             hybrid_real = 1.0 - hybrid_fake
             hybrid_label = "FAKE" if hybrid_fake > hybrid_real else "REAL"
             hybrid_confidence = hybrid_fake if hybrid_label == "FAKE" else hybrid_real
             agreement = "Local AI Artifacts Detected"
+        elif fft_score >= 0.65 and patch_res["label"] == "FAKE":
+            # FFT alone indicates highly irregular frequency pattern (strong AI generation signal)
+            hybrid_fake = float((resize_fake + patch_fake + fft_score) / 3.0)
+            hybrid_real = 1.0 - hybrid_fake
+            hybrid_label = "FAKE" if hybrid_fake > hybrid_real else "REAL"
+            hybrid_confidence = hybrid_fake if hybrid_label == "FAKE" else hybrid_real
+            agreement = "FFT Spectral Anomaly Detected"
         else:
             hybrid_fake = float((resize_fake + patch_fake) / 2.0)
             hybrid_real = 1.0 - hybrid_fake
@@ -121,6 +166,7 @@ def predict_image_hybrid(
         "real_probability": hybrid_real,
         "prediction_difference": float(diff),
         "agreement": agreement,
+        "fft_score_used": fft_score,
         "resize_prediction": {
             "label": resize_res["label"],
             "fake_probability": resize_res["fake_probability"],

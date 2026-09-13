@@ -215,7 +215,11 @@ def test_hybrid_inference_output(dummy_model_and_device):
     assert "resize_prediction" in result
     assert "patch_prediction" in result
     assert "prediction_difference" in result
-    assert result["agreement"] in ["Strong Agreement", "Partial Agreement", "Moderate Agreement", "Disagreement"]
+    assert result["agreement"] in [
+        "Strong Agreement", "Partial Agreement", "Moderate Agreement", "Strategy Disagreement",
+        "Real Photo (Camera Noise Filtered)", "Local AI Artifacts Detected",
+        "Native Patch Confirmed (Aliasing Filtered)", "FFT Spectral Anomaly Detected"
+    ]
 
 
 def test_tta_inference_output(dummy_model_and_device):
@@ -226,8 +230,8 @@ def test_tta_inference_output(dummy_model_and_device):
     result = predict_image_tta(img, model=model, device=device)
 
     assert result["inference_mode"] == "tta"
-    assert result["tta_view_count"] == 4
-    assert len(result["tta_fake_probs"]) == 4
+    assert result["tta_view_count"] == 8
+    assert len(result["tta_fake_probs"]) == 8
     assert 0.0 <= result["tta_std"] <= 1.0
 
 
@@ -235,15 +239,20 @@ def test_auto_mode_dispatch(dummy_model_and_device):
     """15. Verifies resolution-aware auto mode dispatcher."""
     model, device = dummy_model_and_device
 
-    # Small image (64x64 < 128px threshold) -> auto selects resize
-    img_small = Image.new("RGB", (64, 64), color=(10, 10, 10))
+    # Small image (32x32 < 64px threshold) -> auto selects resize
+    img_small = Image.new("RGB", (32, 32), color=(10, 10, 10))
     res_small = predict_image_auto(img_small, model=model, device=device, mode="auto")
     assert res_small["inference_mode"] in ["resize", "resize_fallback"]
 
-    # Large image (256x256 >= 128px threshold) -> auto selects patch
+    # Medium image (100x100 >= 64px and < 256px threshold) -> auto selects patch
+    img_medium = Image.new("RGB", (100, 100), color=(10, 10, 10))
+    res_medium = predict_image_auto(img_medium, model=model, device=device, mode="auto")
+    assert res_medium["inference_mode"] == "patch"
+
+    # Large image (256x256 >= 256px threshold) -> auto selects hybrid
     img_large = Image.new("RGB", (256, 256), color=(10, 10, 10))
-    res_large = predict_image_auto(img_large, model=model, device=device, mode="auto", n_patches=8)
-    assert res_large["inference_mode"] == "patch"
+    res_large = predict_image_auto(img_large, model=model, device=device, mode="auto")
+    assert res_large["inference_mode"] == "hybrid"
 
 
 def test_backward_compatibility_predict_image(dummy_model_and_device):
