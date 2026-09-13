@@ -306,27 +306,45 @@ def main():
             st.subheader("🎯 Inference & Diagnostic Output")
 
             if uploaded_file is not None and analyze_clicked:
-                with st.spinner(f"Executing PyTorch inference ({selected_mode_key.upper()} mode)..."):
-                    start_t = time.time()
-                    
-                    import importlib
-                    import app.strategies.hybrid.hybrid_strategy
-                    import app.strategies.auto.auto_strategy
-                    importlib.reload(app.strategies.hybrid.hybrid_strategy)
-                    importlib.reload(app.strategies.auto.auto_strategy)
-                    from app.predictor import predict_image_auto
+                if pre_meta["provenance_verdict"] == "AI_GENERATED":
+                    # Bypass deep learning model completely — directly return AI-Generated result from verified metadata
+                    res = {
+                        "label": "FAKE",
+                        "confidence": 1.00,
+                        "fake_probability": 1.00,
+                        "real_probability": 0.00,
+                        "inference_mode": "metadata_provenance",
+                        "agreement": f"AI Metadata Verified ({pre_meta['source_identified']})",
+                        "normalized_entropy": 0.0,
+                        "entropy": 0.0,
+                        "uncertainty_level": "Certain (100% Provenance Verified)",
+                        "uncertainty_note": f"Image contains verified digital AI metadata: {pre_meta['status_message']}. Deep learning PyTorch execution skipped.",
+                        "metadata_diagnostic": pre_meta,
+                        "image_dimensions": f"{width} x {height}"
+                    }
+                    elapsed_ms = 0.1
+                else:
+                    with st.spinner(f"Executing PyTorch inference ({selected_mode_key.upper()} mode)..."):
+                        start_t = time.time()
+                        
+                        import importlib
+                        import app.strategies.hybrid.hybrid_strategy
+                        import app.strategies.auto.auto_strategy
+                        importlib.reload(app.strategies.hybrid.hybrid_strategy)
+                        importlib.reload(app.strategies.auto.auto_strategy)
+                        from app.predictor import predict_image_auto
 
-                    res = predict_image_auto(
-                        image,
-                        model=model,
-                        device=device,
-                        mode=selected_mode_key,
-                        n_patches=patch_n_val,
-                        seed=int(seed_val),
-                        aggregation=aggregation_val
-                    )
-                    
-                    elapsed_ms = (time.time() - start_t) * 1000
+                        res = predict_image_auto(
+                            image,
+                            model=model,
+                            device=device,
+                            mode=selected_mode_key,
+                            n_patches=patch_n_val,
+                            seed=int(seed_val),
+                            aggregation=aggregation_val
+                        )
+                        
+                        elapsed_ms = (time.time() - start_t) * 1000
 
                     label = res["label"]
                     conf = res["confidence"]
