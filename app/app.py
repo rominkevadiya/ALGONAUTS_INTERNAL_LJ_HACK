@@ -196,7 +196,8 @@ def main():
             index=strategy_options.index(DEFAULT_INFERENCE_MODE) if DEFAULT_INFERENCE_MODE in strategy_options else 0,
             format_func=lambda x: strategy_labels.get(x, x),
             help="Select how the image is presented to the trained model."
-        )
+        ) or "auto"
+
 
 
         with st.expander("🛠️ Advanced Settings", expanded=False):
@@ -323,20 +324,21 @@ def main():
                     }
                     elapsed_ms = 0.1
                 else:
-                    with st.spinner(f"Executing PyTorch inference ({selected_mode_key.upper()} mode)..."):
+                    mode_str = str(selected_mode_key or "auto").upper()
+                    with st.spinner(f"Executing PyTorch inference ({mode_str} mode)..."):
                         start_t = time.time()
                         from app.predictor import predict_image_auto
-
 
                         res = predict_image_auto(
                             image,
                             model=model,
                             device=device,
-                            mode=selected_mode_key,
+                            mode=selected_mode_key or "auto",
                             n_patches=patch_n_val,
                             seed=int(seed_val),
                             aggregation=aggregation_val
                         )
+
                         
                         elapsed_ms = (time.time() - start_t) * 1000
 
