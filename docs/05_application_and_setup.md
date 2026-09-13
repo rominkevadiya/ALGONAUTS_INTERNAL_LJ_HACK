@@ -25,10 +25,10 @@ Every input image undergoes the following 14-step inference sequence:
 3. **PIL Decoding**: `Image.open(uploaded_file)` decodes image file.
 4. **EXIF Correction**: `ImageOps.exif_transpose(image)` auto-rotates camera metadata tags.
 5. **RGB Standardization**: `image.convert("RGB")` converts Grayscale or RGBA images to 3-channel RGB.
-6. **Spatial Resize**: `transforms.Resize((224, 224))` resizes image to fixed spatial dimensions.
+6. **Spatial Resize**: `transforms.Resize((32, 32))` resizes image to fixed spatial dimensions.
 7. **Tensor Conversion**: `transforms.ToTensor()` scales pixel values $[0, 255] \rightarrow [0.0, 1.0]$.
 8. **Normalization**: `transforms.Normalize()` applies ImageNet Z-scores ($\text{mean}=[0.485, 0.456, 0.406]$, $\text{std}=[0.229, 0.224, 0.225]$).
-9. **Batch Dimension**: `.unsqueeze(0)` shapes tensor to $(1, 3, 224, 224)$.
+9. **Batch Dimension**: `.unsqueeze(0)` shapes tensor to $(1, 3, 32, 32)$.
 10. **Device Transfer**: `.to(device)` transfers tensor to CPU or CUDA GPU memory.
 11. **Inference Context**: Forward pass executed inside `with torch.no_grad():`.
 12. **Forward Pass**: Model outputs raw logits $z_0$ (FAKE) and $z_1$ (REAL).
@@ -79,7 +79,7 @@ pytest tests/test_predictor.py -v
 ### `app/config.py`
 - `MODEL_PATH`: `Path` to `model/best_resnet50_cifake_native32_2.pth`.
 - `CLASS_MAPPING`: `{0: "FAKE", 1: "REAL"}`.
-- `IMAGE_SIZE`: `(224, 224)`.
+- `IMAGE_SIZE`: `(32, 32)`.
 - `IMAGENET_MEAN` / `IMAGENET_STD`: Standard normalization vectors.
 - `BENCHMARK_METRICS`: Benchmark performance constants table.
 
@@ -88,7 +88,7 @@ pytest tests/test_predictor.py -v
 - `load_model(model_path=None) -> tuple[nn.Module, torch.device]`: Instantiates ResNet-50, auto-detects checkpoint stem variant (standard `7×7` vs CIFAR-adapted `3×3`), restores weights, sets `eval()` mode, and caches model via `@st.cache_resource` (Streamlit) or module-level dict (tests/scripts).
 
 ### `app/predictor.py`
-- `preprocess_image(image: Image.Image) -> torch.Tensor`: Preprocesses image into tensor shape `(1, 3, 224, 224)`.
+- `preprocess_image(image: Image.Image) -> torch.Tensor`: Preprocesses image into tensor shape `(1, 3, 32, 32)`.
 - `predict_image(...) -> dict`: Facade method that delegates to the appropriate strategy.
 - `predict_batch(...) -> pd.DataFrame`: Runs inference on multiple images safely handling exceptions.
 

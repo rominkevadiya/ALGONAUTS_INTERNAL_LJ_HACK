@@ -137,14 +137,14 @@ Open PowerShell and navigate to the project directory:
 pip install -r requirements.txt
 ```
 
-### 3. Setup Gemini API Key
+### 2. Setup Gemini API Key
 To utilize the Faithful Explanation (Module A), Generator Attribution (Module B), and Multimodal (Module E) features, create a `.env` file in the root directory:
 
 ```env
 GEMINI_API_KEY=your_google_gemini_api_key_here
 ```
 
-### 4. Run the Streamlit Application
+### 3. Run the Streamlit Application
 
 Launch the local web application:
 
@@ -154,7 +154,7 @@ streamlit run app/app.py
 
 The app will launch in your web browser automatically at `http://localhost:8501`.
 
-### 5. Run Bonus Evaluations
+### 4. Run Bonus Evaluations
 - **Unseen Generator Split:** `python evaluation/evaluate_unseen.py`
 - **Degradation Robustness:** `python evaluation/degradation_analysis.py`
 - **Active Defence Analysis:** `python evaluation/adversarial_analysis.py`
