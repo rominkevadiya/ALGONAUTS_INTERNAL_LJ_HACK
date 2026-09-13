@@ -1,6 +1,6 @@
 """
 SignalScope - AI-Generated Image Detection Application
-Streamlit Interface for ResNet-50 Model Inference
+Streamlit Interface for ResNet-50 Model Inference & Diagnostics
 """
 
 import os
@@ -8,7 +8,7 @@ import sys
 import time
 from pathlib import Path
 
-# Ensure project root directory is first in sys.path and remove script directory to avoid name collision with app package
+# Ensure project root directory is first in sys.path
 ROOT_DIR = Path(__file__).resolve().parent.parent
 SCRIPT_DIR = Path(__file__).resolve().parent
 
@@ -19,28 +19,55 @@ if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
 from PIL import Image
+import numpy as np
 import pandas as pd
 import streamlit as st
 import torch
 import torch.nn.functional as F
 
-# Custom imports from app package (handles direct script execution vs package import)
+# Custom imports from app package
 try:
     from app.config import (
         BENCHMARK_METRICS,
         DISCLAIMER_TEXT,
-        CONFIDENCE_DISCLAIMER
+        CONFIDENCE_DISCLAIMER,
+        DEFAULT_INFERENCE_MODE,
+        PATCH_N,
+        PATCH_AGGREGATION_DEFAULT,
+        PATCH_AGGREGATION_METHODS,
+        INFERENCE_MODES
     )
     from app.model_loader import load_model
-    from app.predictor import predict_image, predict_batch, preprocess_image
+    from app.predictor import (
+        predict_image,
+        predict_image_patch_vote,
+        predict_image_tta,
+        predict_image_hybrid,
+        predict_image_auto,
+        predict_batch,
+        preprocess_image
+    )
 except (ModuleNotFoundError, ImportError):
     from config import (
         BENCHMARK_METRICS,
         DISCLAIMER_TEXT,
-        CONFIDENCE_DISCLAIMER
+        CONFIDENCE_DISCLAIMER,
+        DEFAULT_INFERENCE_MODE,
+        PATCH_N,
+        PATCH_AGGREGATION_DEFAULT,
+        PATCH_AGGREGATION_METHODS,
+        INFERENCE_MODES
     )
     from model_loader import load_model
-    from predictor import predict_image, predict_batch, preprocess_image
+    from predictor import (
+        predict_image,
+        predict_image_patch_vote,
+        predict_image_tta,
+        predict_image_hybrid,
+        predict_image_auto,
+        predict_batch,
+        preprocess_image
+    )
 
 # Page configuration
 st.set_page_config(
@@ -53,13 +80,11 @@ st.set_page_config(
 # Custom CSS Styling
 st.markdown("""
 <style>
-    /* Global styles */
     .main .block-container {
         padding-top: 1.5rem;
         padding-bottom: 3rem;
     }
     
-    /* Header card */
     .header-card {
         background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
         color: #ffffff;
@@ -86,7 +111,6 @@ st.markdown("""
         margin-bottom: 0;
     }
     
-    /* Result Cards */
     .result-box-fake {
         background-color: #450a0a;
         border: 2px solid #ef4444;
@@ -127,17 +151,6 @@ st.markdown("""
         font-size: 0.95rem;
         opacity: 0.9;
     }
-    
-    .debug-box {
-        background-color: #0f172a;
-        border: 1px dashed #475569;
-        border-radius: 8px;
-        padding: 1rem;
-        font-family: monospace;
-        font-size: 0.85rem;
-        color: #38bdf8;
-        margin-top: 1rem;
-    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -147,27 +160,71 @@ def main():
     st.markdown("""
     <div class="header-card">
         <div class="header-title">🔍 SignalScope</div>
-        <div class="header-subtitle">AI-Generated Image Detection System</div>
+        <div class="header-subtitle">AI-Generated Image Detection & Diagnostics System</div>
         <p style="margin-top: 0.8rem; color: #cbd5e1; font-size: 0.95rem;">
-            Screen images using the trained ResNet-50 model to classify whether an image is 
-            <strong>AI-Generated (FAKE)</strong> or an <strong>Authentic Photograph (REAL)</strong>.
+            Screen images using the trained ResNet-50 model with multi-strategy inference (Native Patch Voting, Hybrid, TTA) 
+            to classify whether an image is <strong>AI-Generated (FAKE)</strong> or an <strong>Authentic Photograph (REAL)</strong>.
         </p>
     </div>
     """, unsafe_allow_html=True)
 
-    # Sidebar: Model Setup & Benchmarks
+    # Sidebar: Model Setup & Inference Controls
     with st.sidebar:
-        st.header("⚡ System Info")
+        st.header("⚡ System Status")
         
-        # Load model dynamically
         try:
             model, device = load_model()
             device_label = "🔥 GPU (CUDA)" if device.type == "cuda" else "💻 CPU"
-            st.success(f"ResNet-50 Model Active ({device_label})")
+            st.success(f"ResNet-50 Active ({device_label})")
         except Exception as err:
             st.error("Failed to load model checkpoint.")
             st.error(f"Details: {str(err)}")
             st.stop()
+
+        st.markdown("---")
+        st.header("⚙️ Inference Controls")
+        
+        mode_labels = {
+            "auto": "Automatic (Resolution-Aware)",
+            "resize": "Resize (Baseline 32×32)",
+            "patch": "Native Patch Voting",
+            "hybrid": "Hybrid (Resize + Patch)",
+            "tta": "Test-Time Augmentation (TTA)"
+        }
+        
+        selected_mode_key = st.selectbox(
+            "Inference Strategy",
+            options=INFERENCE_MODES,
+            index=INFERENCE_MODES.index(DEFAULT_INFERENCE_MODE),
+            format_func=lambda x: mode_labels.get(x, x),
+            help="Select how the image is presented to the trained model."
+        )
+
+        with st.expander("🛠️ Advanced Settings", expanded=False):
+            patch_n_val = st.slider(
+                "Number of Patches (Patch/Hybrid)",
+                min_value=8,
+                max_value=64,
+                value=PATCH_N,
+                step=4,
+                help="Number of native 32x32 crops extracted across the image."
+            )
+            
+            aggregation_val = st.selectbox(
+                "Patch Aggregation",
+                options=PATCH_AGGREGATION_METHODS,
+                index=PATCH_AGGREGATION_METHODS.index(PATCH_AGGREGATION_DEFAULT),
+                help="Strategy to aggregate patch-level predictions."
+            )
+            
+            seed_val = st.number_input(
+                "Random Seed",
+                min_value=0,
+                max_value=9999,
+                value=42,
+                step=1,
+                help="Ensures deterministic patch crop locations."
+            )
 
         st.markdown("---")
         st.subheader("📊 CIFAKE Test Benchmarks")
@@ -195,7 +252,7 @@ def main():
             uploaded_file = st.file_uploader(
                 "Choose a JPG, JPEG, or PNG image",
                 type=["jpg", "jpeg", "png"],
-                help="Upload an image to run live PyTorch model inference."
+                help="Upload an image to run live model inference."
             )
 
             if uploaded_file is not None:
@@ -210,7 +267,7 @@ def main():
                 if image is not None:
                     st.image(image, caption=f"Preview: {uploaded_file.name}", width="stretch")
                     width, height = image.size
-                    st.caption(f"**Filename:** `{uploaded_file.name}` | **Size:** {width} × {height} px | **Color Mode:** {image.mode}")
+                    st.caption(f"**Filename:** `{uploaded_file.name}` | **Resolution:** {width} × {height} px | **Mode:** {image.mode}")
                     
                     analyze_clicked = st.button("🔎 Analyze Image", type="primary", width="stretch")
                 else:
@@ -220,27 +277,29 @@ def main():
                 analyze_clicked = False
 
         with col_output:
-            st.subheader("🎯 Live Inference Output")
+            st.subheader("🎯 Inference & Diagnostic Output")
 
             if uploaded_file is not None and analyze_clicked:
-                with st.spinner("Executing PyTorch forward pass..."):
+                with st.spinner(f"Executing PyTorch inference ({selected_mode_key.upper()} mode)..."):
                     start_t = time.time()
                     
-                    # Direct raw forward pass to obtain exact unrounded logits
-                    input_tensor = preprocess_image(image).to(device)
-                    with torch.no_grad():
-                        raw_logits = model(input_tensor).squeeze(0)
-                        raw_probs = F.softmax(raw_logits, dim=0)
-
+                    res = predict_image_auto(
+                        image,
+                        model=model,
+                        device=device,
+                        mode=selected_mode_key,
+                        n_patches=patch_n_val,
+                        seed=int(seed_val),
+                        aggregation=aggregation_val
+                    )
+                    
                     elapsed_ms = (time.time() - start_t) * 1000
 
-                    logit_fake = float(raw_logits[0].item())
-                    logit_real = float(raw_logits[1].item())
-                    fake_prob = float(raw_probs[0].item())
-                    real_prob = float(raw_probs[1].item())
-
-                    label = "FAKE" if fake_prob > real_prob else "REAL"
-                    conf = fake_prob if label == "FAKE" else real_prob
+                    label = res["label"]
+                    conf = res["confidence"]
+                    fake_prob = res["fake_probability"]
+                    real_prob = res["real_probability"]
+                    active_mode = res.get("inference_mode", selected_mode_key)
 
                     # Status Box Rendering
                     if conf < 0.70:
@@ -256,12 +315,12 @@ def main():
                     st.markdown(f"""
                     <div class="{box_class}">
                         <div class="result-label">{badge_text}</div>
-                        <div class="result-subtext">Confidence Score: {conf * 100:.2f}%</div>
+                        <div class="result-subtext">Confidence Score: {conf * 100:.2f}% | Mode: {active_mode.upper()}</div>
                     </div>
                     """, unsafe_allow_html=True)
 
                     st.markdown("<br>", unsafe_allow_html=True)
-                    st.subheader("📈 Computed Probabilities")
+                    st.subheader("📈 Classification Probabilities")
                     
                     col_p1, col_p2 = st.columns(2)
                     with col_p1:
@@ -271,43 +330,84 @@ def main():
                         st.metric("Real Probability", f"{real_prob * 100:.2f}%")
                         st.progress(real_prob)
 
-                    # Live PyTorch Model Diagnostics Panel (Proves No Static Data)
-                    with st.expander("🔬 Live PyTorch Diagnostic Logits (Proof of Dynamic Computation)", expanded=False):
-                        st.markdown(f"""
-                        **Forward Pass Timing:** `{elapsed_ms:.2f} ms`  
-                        **Device Executed:** `{device.type.upper()}`  
-                        
-                        **Raw Unrounded Output Logits:**
-                        - `Logit Class 0 (FAKE):` `{logit_fake:+.6f}`
-                        - `Logit Class 1 (REAL):` `{logit_real:+.6f}`
-                        
-                        **Raw Softmax Probabilities:**
-                        - `Prob Class 0 (FAKE):` `{fake_prob:.8f}`
-                        - `Prob Class 1 (REAL):` `{real_prob:.8f}`
-                        """)
+                    # Disclaimer
+                    st.caption("🛡️ Confidence reflects model certainty under the selected strategy, not an absolute guarantee.")
 
-                    # Domain Shift Notice
-                    st.markdown("---")
-                    st.subheader("💡 Analysis Explanation & Domain Limitation")
-                    if label == "FAKE":
-                        st.write(
-                            "The model detected spatial artifact patterns associated with Class 0 (FAKE) in its training distribution."
-                        )
-                    else:
-                        st.write(
-                            "The model detected texture characteristics associated with Class 1 (REAL) in its training distribution."
-                        )
+                    # --------------------------------------------------
+                    # Diagnostics Expander
+                    # --------------------------------------------------
+                    with st.expander("🔬 Comprehensive Diagnostics & Stability Analysis", expanded=True):
+                        d_tab1, d_tab2, d_tab3, d_tab4 = st.tabs([
+                            "📊 Output & Entropy", "🧩 Patch Stability", "⚖️ Hybrid Comparison", "🌀 FFT Diagnostic"
+                        ])
 
-                    st.warning(
-                        "⚠️ **Important Note on Dataset Scope:** This ResNet-50 model was trained strictly on the **CIFAKE dataset** "
-                        "(32×32 native resolution images — CIFAR-10 real photos vs Stable Diffusion v1.4 AI images). "
-                        "Modern AI generators (Gemini, Midjourney v6, DALL-E 3, etc.) were **not represented in training**. "
-                        "High-resolution images from these generators are downscaled to 32×32 before inference, which erases generation artifacts. "
-                        "As a result, the model may confidently classify modern AI-generated images as REAL due to **Out-of-Distribution domain shift**."
-                    )
+                        # Sub-Tab 1: Output & Entropy
+                        with d_tab1:
+                            st.markdown(f"**Inference Timing:** `{elapsed_ms:.2f} ms` | **Device:** `{device.type.upper()}` | **Resolution:** `{res.get('image_dimensions')}`")
+                            st.markdown(f"**Normalized Shannon Entropy:** `{res.get('normalized_entropy', 0.0):.4f}` (Raw: `{res.get('entropy', 0.0):.4f}`)")
+                            st.info(f"**Uncertainty Level:** {res.get('uncertainty_level')}\n\n{res.get('uncertainty_note')}")
+
+                        # Sub-Tab 2: Patch Stability & Binned Histogram
+                        with d_tab2:
+                            if "stability" in res:
+                                stab = res["stability"]
+                                s_col1, s_col2, s_col3 = st.columns(3)
+                                with s_col1:
+                                    st.metric("Mean Patch Fake Prob", f"{stab['mean_fake_probability']*100:.1f}%")
+                                    st.metric("Median Patch Fake Prob", f"{stab['median_fake_probability']*100:.1f}%")
+                                with s_col2:
+                                    st.metric("Std Dev", f"{stab['std_fake_probability']:.4f}")
+                                    st.metric("Range (Max - Min)", f"{stab['range_fake_probability']:.4f}")
+                                with s_col3:
+                                    st.metric("Patch Agreement", f"{stab['patch_agreement_pct']:.1f}%")
+                                    st.metric("Votes (Fake / Real)", f"{stab['fake_patch_count']} / {stab['real_patch_count']}")
+
+                                # Binned Probability Histogram Visualization
+                                st.markdown("---")
+                                st.subheader("📊 Patch Probability Distribution Histogram")
+                                patch_probs = res.get("patch_fake_probs", [])
+                                if patch_probs:
+                                    bins = np.linspace(0.0, 1.0, 11)
+                                    counts, _ = np.histogram(patch_probs, bins=bins)
+                                    bin_labels = [f"{bins[i]:.1f}-{bins[i+1]:.1f}" for i in range(10)]
+                                    df_hist = pd.DataFrame({"Patch Count": counts}, index=bin_labels)
+                                    st.bar_chart(df_hist)
+                            else:
+                                st.info("Patch stability diagnostics are active when in Native Patch or Hybrid inference modes.")
+
+                        # Sub-Tab 3: Hybrid Comparison
+                        with d_tab3:
+                            if "resize_prediction" in res and "patch_prediction" in res:
+                                h_resize = res["resize_prediction"]
+                                h_patch = res["patch_prediction"]
+                                
+                                st.markdown(f"**Hybrid Status:** `{res.get('agreement')}` | **Prob Difference:** `{res.get('prediction_difference', 0.0):.4f}`")
+                                
+                                comp_data = {
+                                    "Strategy": ["Baseline Resize (32x32)", "Native Patch Voting"],
+                                    "Predicted Label": [h_resize["label"], h_patch["label"]],
+                                    "Fake Probability": [f"{h_resize['fake_probability']*100:.2f}%", f"{h_patch['fake_probability']*100:.2f}%"],
+                                    "Real Probability": [f"{h_resize['real_probability']*100:.2f}%", f"{h_patch['real_probability']*100:.2f}%"]
+                                }
+                                st.dataframe(pd.DataFrame(comp_data), width="stretch")
+                            else:
+                                st.info("Hybrid comparison is available when running in 'Hybrid' mode.")
+
+                        # Sub-Tab 4: Experimental FFT Diagnostic
+                        with d_tab4:
+                            fft_data = res.get("fft_diagnostic", {})
+                            f_col1, f_col2 = st.columns(2)
+                            with f_col1:
+                                st.metric("Spectral Irregularity Score", f"{fft_data.get('spectral_score', 0.0):.4f}")
+                                st.write(f"**Diagnostic Label:** `{fft_data.get('diagnostic_label')}`")
+                            with f_col2:
+                                st.metric("High/Low Energy Ratio", f"{fft_data.get('high_to_low_ratio', 0.0):.4f}")
+                                st.metric("Spectral Slope", f"{fft_data.get('spectral_slope', 0.0):.4f}")
+
+                            st.warning(f"⚠️ **Experimental Diagnostic Note:** {fft_data.get('interpretation')}")
 
             elif uploaded_file is not None:
-                st.info("Click **Analyze Image** above to run the live PyTorch inference engine.")
+                st.info("Click **Analyze Image** above to run the PyTorch inference & diagnostics engine.")
 
     # ------------------------------------------------------------------
     # TAB 2: Batch Processing
@@ -336,8 +436,15 @@ def main():
                     except Exception:
                         pass
                 
-                with st.spinner(f"Running inference on {len(images_dict)} images..."):
-                    df_results = predict_batch(images_dict, model=model, device=device)
+                with st.spinner(f"Running inference on {len(images_dict)} images using '{selected_mode_key.upper()}' strategy..."):
+                    df_results = predict_batch(
+                        images_dict,
+                        model=model,
+                        device=device,
+                        mode=selected_mode_key,
+                        n_patches=patch_n_val,
+                        aggregation=aggregation_val
+                    )
 
                 st.success("Batch processing complete!")
                 display_df = df_results.drop(columns=["Raw Confidence"], errors="ignore")
@@ -356,19 +463,23 @@ def main():
     # TAB 3: Technical Details & Benchmark Output
     # ------------------------------------------------------------------
     with tab_about:
-        st.subheader("🔬 Architecture & Dataset Information")
+        st.subheader("🔬 Architecture & Multi-Strategy Inference Overview")
         
         st.markdown("""
-        ### SignalScope Pipeline Overview
+        ### SignalScope Pipeline Capabilities
         SignalScope uses a fine-tuned **ResNet-50** neural network trained on the **CIFAKE** dataset.
         
-        - **Input Resolution:** $32 \\times 32$ RGB Image (adapted native stem)
+        - **Supported Inference Strategies:**
+          - **Resize (Baseline):** Resizes full image to $32 \\times 32$ bicubic (fast, baseline).
+          - **Native Patch Voting:** Extracts $N$ native $32 \\times 32$ crops from high-res images to preserve pixel-level texture.
+          - **Hybrid:** Combines Resize and Patch predictions, calculating strategy agreement.
+          - **Test-Time Augmentation (TTA):** Evaluates predictions across multiple geometric transformations.
         - **Normalization:** ImageNet Mean `[0.485, 0.456, 0.406]`, Std `[0.229, 0.224, 0.225]`
-        - **Optimizer:** AdamW ($1 \\times 10^{-4}$) with Cross-Entropy Loss
+        - **Diagnostics:** Normalized Shannon Entropy $H(p)$, Patch Disagreement Variance, and Experimental 2D FFT Spectral Analysis.
         """)
 
         st.markdown("---")
-        st.subheader("📈 Benchmark Performance Metrics")
+        st.subheader("📈 Benchmark Performance Metrics (CIFAKE Test Set)")
 
         m_col1, m_col2, m_col3 = st.columns(3)
         with m_col1:
@@ -381,7 +492,6 @@ def main():
             st.metric("Sensitivity", "98.34%")
             st.metric("Specificity", "98.31%")
 
-        # Display evaluation plots if available
         outputs_dir = Path(__file__).resolve().parent.parent / "outputs"
         if outputs_dir.exists():
             st.markdown("---")
@@ -413,3 +523,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

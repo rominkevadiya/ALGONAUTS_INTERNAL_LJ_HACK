@@ -26,6 +26,20 @@ IMAGENET_STD = [0.229, 0.224, 0.225]
 HIGH_CONFIDENCE_THRESHOLD = 0.90
 MODERATE_CONFIDENCE_THRESHOLD = 0.70
 
+# Inference Strategy & Patch Settings
+DEFAULT_INFERENCE_MODE = "auto"
+PATCH_N = 32
+PATCH_THRESHOLD_PX = 128
+PATCH_AGGREGATION_DEFAULT = "mean"
+PATCH_AGGREGATION_METHODS = ["mean", "median", "majority", "logit_mean", "max", "top_k"]
+INFERENCE_MODES = ["auto", "resize", "patch", "hybrid", "tta"]
+
+# Uncertainty & Agreement Thresholds
+ENTROPY_LOW_THRESHOLD = 0.2
+ENTROPY_HIGH_THRESHOLD = 0.5
+HYBRID_STRONG_DIFF = 0.15
+HYBRID_PARTIAL_DIFF = 0.30
+
 # Disclaimer Messages
 DISCLAIMER_TEXT = (
     "SignalScope is an AI-based screening tool. It should not be treated as "
