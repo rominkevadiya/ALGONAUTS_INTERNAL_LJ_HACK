@@ -36,9 +36,11 @@ Key objectives:
 ---
 
 ## 5. Core Features
+- **Multi-Strategy Inference**: Five robust strategies including Baseline Resize, Variance-Guided Native Patch Voting, 8-View Test-Time Augmentation (TTA), Hybrid Consensus, and an intelligent Auto-Dispatcher.
+- **Advanced Diagnostics**: Real-time evaluation of Normalized Shannon Entropy for uncertainty, and 2D Fast Fourier Transform (FFT) analysis to detect structural frequency anomalies.
 - **Single-Image Screening**: Instant upload, preview, and classification with color-coded result boxes (Red for FAKE, Green for REAL, Amber for Low Confidence).
 - **Batch Processing**: Simultaneous multi-image processing with downloadable CSV report.
-- **Live Diagnostics**: Real-time display of unrounded model output logits ($z_0, z_1$) and execution device to prove live computation.
+- **Live Diagnostics**: Real-time display of Softmax probabilities, inference modes, raw logits, and execution device to prove live computation.
 - **Pretrained Checkpoint**: Loads pre-trained weights (`model/best_resnet50_cifake_native32_2.pth`) without retraining during application execution.
 
 ---

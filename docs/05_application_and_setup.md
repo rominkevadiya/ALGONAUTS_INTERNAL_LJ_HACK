@@ -86,8 +86,14 @@ pytest tests/test_predictor.py -v
 
 ### `app/predictor.py`
 - `preprocess_image(image: Image.Image) -> torch.Tensor`: Preprocesses image into tensor shape `(1, 3, 224, 224)`.
-- `predict_image(image, model=None, device=None) -> dict`: Runs live inference inside `torch.no_grad()` and returns prediction dictionary.
-- `predict_batch(images_dict, model=None, device=None) -> pd.DataFrame`: Runs inference on multiple images and returns a Pandas DataFrame.
+- `predict_image(...) -> dict`: Facade method that delegates to the appropriate strategy.
+- `predict_batch(...) -> pd.DataFrame`: Runs inference on multiple images safely handling exceptions.
+
+### `app/strategies/`
+- **`auto_strategy.py`**: Graduated dispatcher routing based on resolution (`<64px`, `64-256px`, `>256px`).
+- **`hybrid_strategy.py`**: Decision tree combining Resize, Patch, and FFT diagnostics.
+- **`patch_strategy.py`**: Variance-guided native crop extraction with adaptive luminance thresholds.
+- **`tta_strategy.py`**: 8-view geometric/photometric augmentation with inverse-entropy weighting.
 
 ### `app/app.py`
 - Streamlit application entry point implementing header, tabs, single-image preview, prediction visual boxes, live diagnostic logits expander, batch upload, and CSV downloads.

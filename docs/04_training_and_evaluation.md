@@ -2,7 +2,7 @@
 
 ## 1. Training Setup & Hyperparameters
 
-Forensic execution details extracted from `notebook/SignalScope_CIFAKE_ResNet50_Native32.ipynb`:
+Forensic execution details from the model's original training process:
 
 - **Batch Size**: 32
 - **Initial Learning Rate**: $1 \times 10^{-4}$

@@ -5,8 +5,10 @@
 SignalScope is organized into decoupled Python modules:
 
 - **`app/config.py`**: Central configuration storing model path (`model/best_resnet50_cifake_native32_2.pth`), ImageNet normalization mean/std, spatial input dimensions (`32, 32`), class mapping (`0: FAKE`, `1: REAL`), and benchmark metrics constants.
-- **`app/model_loader.py`**: Handles device selection (`cuda` vs `cpu`), instantiates `torchvision.models.resnet50(weights=None)`, auto-detects the checkpoint stem variant by inspecting `conv1.weight` shape (standard `7×7` vs CIFAR-adapted `3×3` + `Identity` maxpool for the native32 model), replaces the final layer with `Linear(2048, 2)`, restores weight tensors, and caches the model using Streamlit's `@st.cache_resource`.
-- **`app/predictor.py`**: Handles image preprocessing (EXIF correction, RGB conversion, $224 \times 224$ resize, ImageNet normalization), runs inference inside `torch.no_grad()`, computes Softmax probabilities, and processes single & batch predictions.
+- **`app/model_loader.py`**: Handles device selection (`cuda` vs `cpu`), instantiates `torchvision.models.resnet50(weights=None)`, auto-detects the checkpoint stem variant, replacing the final layer with `Linear(2048, 2)`, restores weight tensors, and caches the model using Streamlit's `@st.cache_resource`.
+- **`app/predictor.py`**: Facade module that delegates inference to specialized strategies (`auto`, `resize`, `patch`, `hybrid`, `tta`). Processes both single and batch predictions.
+- **`app/strategies/`**: Contains modular inference strategies (Auto-Dispatcher, Baseline Resize, Native Patch Voting, Hybrid Consensus, 8-View TTA).
+- **`app/diagnostics/`**: Contains analytics modules (Shannon Entropy, Statistical Disagreement, 2D FFT Spectral scoring).
 - **`app/app.py`**: Streamlit web dashboard managing UI rendering, single/batch upload tabs, live diagnostic logits expanders, and CSV downloads.
 
 ---
@@ -64,14 +66,16 @@ graph TD
 ### Diagram 3: Inference Pipeline
 ```mermaid
 graph LR
-    PIL["PIL Image"] --> RGB["RGB & EXIF Correction"]
-    RGB --> Resize["Resize (224, 224)"]
-    Resize --> Tensor["ToTensor (0 to 1)"]
-    Tensor --> Normalize["ImageNet Normalize"]
-    Normalize --> BatchDim["Unsqueeze Batch (1, 3, 224, 224)"]
-    BatchDim --> Device["Device Shift (CPU/CUDA)"]
-    Device --> EvalPass["ResNet-50 eval() (torch.no_grad)"]
+    User["User Image"] --> Preproc["Preprocessing (RGB, EXIF)"]
+    Preproc --> Predictor["Predictor Facade"]
+    Predictor --> Dispatch["Auto-Dispatcher"]
+    Dispatch -- "<64px" --> Resize["Resize Strategy"]
+    Dispatch -- "64px - 256px" --> Patch["Patch Strategy (Native crops)"]
+    Dispatch -- ">256px" --> Hybrid["Hybrid Strategy + FFT"]
+    Resize --> EvalPass["ResNet-50 eval() (torch.no_grad)"]
+    Patch --> EvalPass
+    Hybrid --> EvalPass
     EvalPass --> Logits["Raw Logits (z0, z1)"]
-    Logits --> Softmax["Softmax Activation"]
-    Softmax --> DictOut["Result Dict (Label, Conf, Probs)"]
+    Logits --> Diagnostics["Diagnostics (Entropy, Disagreement)"]
+    Diagnostics --> DictOut["Result Dict (Label, Conf, Probs)"]
 ```
