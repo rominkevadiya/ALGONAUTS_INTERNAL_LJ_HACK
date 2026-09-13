@@ -7,27 +7,28 @@ SignalScope is a local inference application designed to screen images and class
 ## 📌 Features & Multi-Strategy Inference Capabilities
 
 - **Binary Classification:** Classifies input images into `FAKE` (AI-generated) or `REAL` (Real photograph).
-- **Native-Resolution Patch Voting:** Extracts native $32 \times 32$ crops across high-resolution images to preserve local pixel-level texture without aggressive downscaling.
-- **Hybrid Inference Strategy:** Combines baseline resize inference and native patch voting to evaluate strategy consistency.
-- **Test-Time Augmentation (TTA):** Evaluates predictions across multiple geometric transformations without retraining.
-- **Resolution-Aware Automatic Selection:** Automatically dispatches the optimal inference mode (`Resize` for small thumbnails, `Patch` for high-resolution images).
+- **Native-Resolution Patch Voting:** Extracts native $32 \times 32$ crops across high-resolution images to preserve local pixel-level texture without aggressive downscaling. Features **variance-guided patch sampling** to actively target complex high-texture regions where AI artifacts hide.
+- **Hybrid Inference Consensus:** Combines baseline resize inference, native patch voting, and spectral diagnostics into a unified decision tree to filter false positives (e.g. dark sensor noise in real photos).
+- **Test-Time Augmentation (TTA):** Generates 8 semantically meaningful geometric and photometric views without retraining, aggregating results using an **inverse-entropy weighting** system to prioritize high-confidence views.
+- **Resolution-Aware Automatic Dispatch:** Automatically routes images to the optimal inference strategy based on resolution (`Resize` <64px, `Patch` 64-256px, `Hybrid` >256px).
 - **Normalized Shannon Entropy Diagnostics:** Computes output uncertainty $H(p) / \ln(2)$ to identify predictions near the decision boundary.
-- **Statistical Disagreement Analysis:** Measures mean, median, standard deviation, and patch agreement percentage.
-- **Experimental 2D FFT Spectral Diagnostic:** Analyzes radial power spectrum and high-to-low frequency ratios as a secondary signal.
+- **Experimental 2D FFT Spectral Diagnostic:** Analyzes radial power spectrum and frequency irregularities. Wired directly into the Hybrid strategy to confirm localized AI artifacts.
 - **Streamlit Web UI:** Interactive single-image analysis with binned patch probability histograms and batch image upload with CSV export.
-- **Robust Preprocessing:** Handles RGB, Grayscale, RGBA, LA, and Palette images with alpha background compositing and EXIF rotation handling.
 
 ---
 
 ## ⚙️ Inference Modes & Usage Guide
 
-SignalScope supports five inference modes without retraining or mutating the underlying model checkpoint:
+SignalScope utilizes a modular facade architecture (`app.predictor`) that delegates to five specialized inference modes without mutating the underlying model checkpoint:
 
-1. **Automatic (`auto`):** Resolution-aware mode. Automatically uses `Resize` mode for small images ($<128\text{px}$) and `Patch` mode for high-resolution images ($\ge 128\text{px}$).
-2. **Resize (`resize`):** Baseline pipeline. Resizes the full image directly to $32 \times 32$ using bicubic interpolation.
-3. **Native Patch Voting (`patch`):** Extracts $N$ native $32 \times 32$ crops (center, corners, grid, and random) at native pixel resolution. Classifies patches in a single batched pass and aggregates probabilities (`mean`, `median`, `majority`, `logit_mean`).
-4. **Hybrid (`hybrid`):** Runs both `Resize` and `Patch` inference, reporting probability difference and agreement status (*Strong*, *Partial*, *Disagreement*).
-5. **Test-Time Augmentation (`tta`):** Runs inference across multiple geometric views and reports prediction standard deviation.
+1. **Automatic (`auto`):** Resolution-aware graduated dispatcher.
+   - `<64px`: Uses Baseline Resize
+   - `64px - 256px`: Uses Native Patch Vote
+   - `>256px`: Uses Hybrid Consensus (Full Analysis)
+2. **Resize (`resize`):** Baseline pipeline. Resizes the full image directly to $32 \times 32$ using bicubic interpolation. Best for very small CIFAKE-native images.
+3. **Native Patch Voting (`patch`):** Extracts $N$ native $32 \times 32$ crops at native pixel resolution. Uses **adaptive luminance thresholds** to filter dark noise and applies **center-weighting aggregation** (salient zone focus) for final probability.
+4. **Hybrid (`hybrid`):** Runs both `Resize` and `Patch` inference, cross-referenced with `FFT Spectral` scores. Employs a complex decision tree to filter aliasing false-positives and confirm localized AI artifacts.
+5. **Test-Time Augmentation (`tta`):** Runs inference across 8 augmented views (Original, H-Flip, Center Crop, Brightness ±15%, Contrast +20%, Rotate 90°/45°). Evaluates prediction stability and self-consistency.
 
 ---
 
@@ -60,40 +61,45 @@ The performance below was evaluated on the official **CIFAKE test dataset** (20,
 
 > [!WARNING]
 > **Dataset Domain Limitation**: The model was trained strictly on the **CIFAKE dataset** ($32 \times 32$ native resolution images — CIFAR-10 real photos vs Stable Diffusion v1.4 AI images). 
-> Modern AI generators (Gemini, Midjourney v6, DALL-E 3, FLUX, etc.) were **not represented in training**. While native patch inference and multi-strategy evaluation improve resolution robustness, this system **does not guarantee generalization to all unseen or future AI generators**.
+> Modern AI generators (Gemini, Midjourney v6, DALL-E 3, FLUX, etc.) were **not represented in training**. While the advanced Patch, TTA, and Hybrid inference strategies dramatically improve real-world robustness without retraining, this system **does not guarantee generalization to all unseen or future AI generators**.
 
 ---
 
 ## 📁 Project Structure
 
-```
+```text
 ALGONAUTS_INTERNAL_LJ_HACK-main/
 │
 ├── model/
 │   └── best_resnet50_cifake_native32_2.pth # Trained PyTorch ResNet-50 checkpoint (~94.3 MB)
 │
 ├── evaluation/
-│   ├── final_evaluation_metrics.csv        # Numerical test metrics export
-│   ├── inference_strategy_benchmark.csv    # Strategy benchmark comparison
-│   ├── run_experimental_evaluation.py     # Non-retraining benchmark script
-│   └── test_predictions.csv                # Detailed 20k test predictions
+│   ├── run_experimental_evaluation.py      # Non-retraining benchmark script
+│   └── ...                                 # Historical CSV metrics
 │
 ├── app/
-│   ├── __init__.py                         # Package marker
 │   ├── app.py                              # Streamlit web application interface
-│   ├── config.py                           # Global paths, constants, and metric settings
+│   ├── config.py                           # Global paths, constants, and thresholds
 │   ├── model_loader.py                     # PyTorch checkpoint loader with caching
-│   └── predictor.py                        # Multi-strategy inference engine & diagnostics
+│   ├── predictor.py                        # Facade API for inference strategies
+│   ├── diagnostics/                        # Analytics modules
+│   │   ├── entropy.py                      # Shannon entropy calculations
+│   │   ├── disagreement.py                 # Statistical variance and stability
+│   │   └── fft_spectral.py                 # 2D Fast Fourier Transform scoring
+│   └── strategies/                         # Inference strategy modules
+│       ├── auto/                           # Graduated resolution dispatcher
+│       ├── hybrid/                         # Multi-strategy consensus decision tree
+│       ├── patch/                          # Variance-guided native patch extraction
+│       ├── resize/                         # Baseline 32x32 scaling
+│       └── tta/                            # 8-view test-time augmentation
 │
 ├── tests/
-│   ├── __init__.py                         # Test package marker
-│   ├── test_patch_inference.py             # Complete unit tests (Patch, TTA, Hybrid, FFT, Entropy)
-│   └── test_predictor.py                   # Pytest baseline unit tests
+│   ├── test_patch_inference.py             # 20+ Unit tests for all inference modes
+│   └── test_predictor.py                   # Baseline structural tests
 │
 ├── .venv/                                  # Local Python virtual environment
 ├── requirements.txt                        # Dependency list
-├── README.md                               # Project documentation
-└── rules.md                                # Team collaboration & project guidelines
+└── README.md                               # Project documentation
 ```
 
 ---
@@ -124,7 +130,7 @@ The app will launch in your web browser automatically at `http://localhost:8501`
 
 ### 3. Run Unit Tests
 
-Verify the model loader and multi-strategy inference engine with Pytest:
+Verify the model loader and multi-strategy inference engine with Pytest (24 tests):
 
 ```powershell
 pytest tests/ -v
@@ -135,4 +141,3 @@ pytest tests/ -v
 ## 🛡️ User & Safety Disclaimer
 
 *SignalScope is designed as an AI screening and assistance tool. Prediction scores reflect model probabilities under selected inference strategies and should not be used as sole legal or definitive proof of image authenticity.*
-
