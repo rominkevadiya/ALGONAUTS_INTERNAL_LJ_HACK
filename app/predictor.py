@@ -587,32 +587,27 @@ def predict_image_hybrid(
     max_patch_fake = patch_res.get("max_patch_fake_prob", patch_fake)
     top_k_patch_fake = patch_res.get("top_k_patch_fake_prob", patch_fake)
 
+    clean_img = prepare_image(image)
+    fft_res = compute_fft_spectral_diagnostic(clean_img)
+    fft_score = fft_res.get("spectral_score", 0.5)
+
     diff = abs(resize_fake - patch_fake)
 
-    if resize_res["label"] == patch_res["label"]:
-        if diff < HYBRID_STRONG_DIFF:
-            agreement = "Strong Agreement"
-        elif diff < HYBRID_PARTIAL_DIFF:
-            agreement = "Partial Agreement"
-        else:
-            agreement = "Moderate Agreement"
-    else:
-        agreement = "Disagreement"
-
-    # Balanced hybrid decision rules
-    if resize_res["label"] != patch_res["label"]:
-        # Strategy Disagreement (e.g. Resize says REAL, Patch says FAKE due to dark webcam noise):
-        # Balance probabilities between strategies so result reflects genuine uncertainty
-        hybrid_fake = (resize_fake + patch_fake) / 2.0
+    # 1. Authentic Camera Photo with Dark Shadow Noise:
+    # If Baseline Resize is >95% REAL AND FFT Spectral Score confirms a natural camera spectrum (<0.40),
+    # the high patch fake score is a known false positive from camera sensor noise in dark shadows.
+    if resize_res["real_probability"] >= 0.95 and fft_score < 0.40:
+        hybrid_fake = float(resize_fake * 0.85 + patch_fake * 0.15)
         hybrid_real = 1.0 - hybrid_fake
-        hybrid_label = "FAKE" if hybrid_fake > hybrid_real else "REAL"
-        hybrid_confidence = hybrid_fake if hybrid_label == "FAKE" else hybrid_real
-        agreement = "Strategy Disagreement"
-    elif resize_res["label"] == "REAL" and (top_k_patch_fake >= 0.65 or max_patch_fake >= 0.80 or (patch_fake - resize_fake) >= 0.30):
-        # Localized AI artifacts detected by patch voting in a high-resolution image!
-        # Factor in top-k patch probability
+        hybrid_label = "REAL"
+        hybrid_confidence = hybrid_real
+        agreement = "Real Camera Photo (Noise Disagreement Resolved)"
+
+    # 2. Localized AI Artifacts in High-Res Images (e.g. Gemini / DALL-E / Midjourney):
+    elif resize_res["label"] == "REAL" and (top_k_patch_fake >= 0.65 or max_patch_fake >= 0.80 or (patch_fake - resize_fake) >= 0.30 or fft_score >= 0.45):
+        # Localized AI artifacts detected by patch voting or FFT spectral analysis!
         hybrid_fake = float(max(patch_fake, (resize_fake + top_k_patch_fake) / 2.0))
-        if top_k_patch_fake >= 0.70:
+        if top_k_patch_fake >= 0.70 or fft_score >= 0.55:
             hybrid_fake = float((hybrid_fake + top_k_patch_fake) / 2.0)
         hybrid_real = 1.0 - hybrid_fake
         hybrid_label = "FAKE" if hybrid_fake > hybrid_real else "REAL"
@@ -621,6 +616,16 @@ def predict_image_hybrid(
             agreement = "Local AI Artifacts Detected"
         else:
             agreement = "Moderate Agreement"
+
+    # 3. Standard Strategy Disagreement (e.g. general ambiguity):
+    elif resize_res["label"] != patch_res["label"]:
+        hybrid_fake = (resize_fake + patch_fake) / 2.0
+        hybrid_real = 1.0 - hybrid_fake
+        hybrid_label = "FAKE" if hybrid_fake > hybrid_real else "REAL"
+        hybrid_confidence = hybrid_fake if hybrid_label == "FAKE" else hybrid_real
+        agreement = "Strategy Disagreement"
+
+    # 4. Standard Agreement:
     else:
         hybrid_label = patch_res["label"]
         hybrid_confidence = patch_res["confidence"]
@@ -661,6 +666,7 @@ def predict_image_hybrid(
             "fake_probability": top_k_patch_fake,
             "real_probability": 1.0 - top_k_patch_fake
         },
+        "fft_diagnostic": fft_res,
         "inference_mode": "hybrid",
         "confidence_info": interpret_confidence(hybrid_confidence)
     }
