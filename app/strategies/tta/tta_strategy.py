@@ -5,9 +5,11 @@ import torch
 import torch.nn.functional as F
 import numpy as np
 
-from app.model_loader import load_model
+from app.model_loader import load_model, resolve_model_device
 from app.diagnostics.entropy import interpret_confidence
 from app.strategies.patch.patch_extractor import prepare_image, get_inference_transform
+from app.strategies.base_strategy import BaseStrategy, validate_strategy_output
+from app.strategies.strategy_registry import register_strategy
 
 
 def _apply_brightness(img: Image.Image, factor: float) -> Image.Image:
@@ -44,10 +46,7 @@ def predict_image_tta(
     most decisive (lowest entropy) contribute more to the final prediction.
     Also reports a self-consistency flag when original vs. H-flip disagree.
     """
-    if model is None or device is None:
-        loaded_model, loaded_device = load_model()
-        model = model or loaded_model
-        device = device or loaded_device
+    model, device = resolve_model_device(model, device)
 
     clean_img = prepare_image(image)
     w, h = clean_img.size
@@ -129,8 +128,6 @@ def predict_image_tta(
     return validate_strategy_output(res, strategy_name="tta")
 
 
-from app.strategies.base_strategy import BaseStrategy, validate_strategy_output
-from app.strategies.strategy_registry import register_strategy
 
 
 class TTAStrategy(BaseStrategy):

@@ -11,13 +11,15 @@ from app.config import (
     PATCH_AGGREGATION_DEFAULT,
     PATCH_AGGREGATION_METHODS,
 )
-from app.model_loader import load_model
+from app.model_loader import load_model, resolve_model_device
 from app.diagnostics.entropy import interpret_confidence
 from app.strategies.patch.patch_extractor import (
     prepare_image,
     get_patch_transform,
     extract_native_patches,
 )
+from app.strategies.base_strategy import BaseStrategy, validate_strategy_output
+from app.strategies.strategy_registry import register_strategy
 
 
 def predict_image_patch_vote(
@@ -36,10 +38,7 @@ def predict_image_patch_vote(
     if aggregation not in PATCH_AGGREGATION_METHODS:
         raise ValueError(f"Invalid aggregation method '{aggregation}'. Supported: {PATCH_AGGREGATION_METHODS}")
 
-    if model is None or device is None:
-        loaded_model, loaded_device = load_model()
-        model = model or loaded_model
-        device = device or loaded_device
+    model, device = resolve_model_device(model, device)
 
     clean_img = prepare_image(image)
     w, h = clean_img.size
@@ -164,8 +163,6 @@ def predict_image_patch_vote(
     return validate_strategy_output(res, strategy_name="patch")
 
 
-from app.strategies.base_strategy import BaseStrategy, validate_strategy_output
-from app.strategies.strategy_registry import register_strategy
 
 
 

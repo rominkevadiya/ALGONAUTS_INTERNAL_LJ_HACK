@@ -22,7 +22,7 @@ from app.config import (
     INFERENCE_BATCH_SIZE,
     MAX_NATIVE_PATCHES,
 )
-from app.model_loader import load_model
+from app.model_loader import load_model, resolve_model_device
 from app.diagnostics.entropy import interpret_confidence
 from app.strategies.patch.patch_extractor import get_patch_transform
 from app.strategies.resize.resize_strategy import predict_image
@@ -195,10 +195,7 @@ def predict_image_multiscale(
 
     Combines scores with normalized weighted fusion and returns structured evidence.
     """
-    if model is None or device is None:
-        loaded_model, loaded_device = load_model()
-        model = model or loaded_model
-        device = device or loaded_device
+    model, device = resolve_model_device(model, device)
 
     # Compute adaptive weights based on image dimension
     adaptive_g, adaptive_c, adaptive_t = _compute_adaptive_weights(

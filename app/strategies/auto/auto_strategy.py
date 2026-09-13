@@ -3,17 +3,15 @@ from typing import Dict, Any, List
 from PIL import Image
 import torch
 import pandas as pd
-import logging
 
 logger = logging.getLogger(__name__)
 
 from app.config import (
     DEFAULT_INFERENCE_MODE,
-    INFERENCE_MODES,
     PATCH_AGGREGATION_DEFAULT,
     METADATA_OVERRIDE_CONFIDENCE_CAP,
 )
-from app.model_loader import load_model
+from app.model_loader import load_model, resolve_model_device
 from app.diagnostics.entropy import compute_prediction_entropy
 from app.diagnostics.disagreement import compute_prediction_disagreement
 from app.diagnostics.fft_spectral import compute_fft_spectral_diagnostic
@@ -174,10 +172,7 @@ def predict_batch(
     """
     Processes a dictionary of {filename: PIL.Image} and returns a structured pandas DataFrame.
     """
-    if model is None or device is None:
-        loaded_model, loaded_device = load_model()
-        model = model or loaded_model
-        device = device or loaded_device
+    model, device = resolve_model_device(model, device)
 
     results: List[Dict[str, Any]] = []
 

@@ -36,8 +36,7 @@ try:
         DEFAULT_INFERENCE_MODE,
         PATCH_N,
         PATCH_AGGREGATION_DEFAULT,
-        PATCH_AGGREGATION_METHODS,
-        INFERENCE_MODES
+        PATCH_AGGREGATION_METHODS
     )
     from app.model_loader import load_model
     from app.predictor import (
@@ -57,8 +56,7 @@ except (ModuleNotFoundError, ImportError):
         DEFAULT_INFERENCE_MODE,
         PATCH_N,
         PATCH_AGGREGATION_DEFAULT,
-        PATCH_AGGREGATION_METHODS,
-        INFERENCE_MODES
+        PATCH_AGGREGATION_METHODS
     )
     from model_loader import load_model
     from predictor import (
@@ -114,33 +112,36 @@ st.markdown("""
     }
     
     .result-box-fake {
-        background-color: #450a0a;
-        border: 2px solid #ef4444;
-        border-radius: 10px;
-        padding: 1.5rem;
+        background: linear-gradient(135deg, #450a0a 0%, #200000 100%);
+        border: 1px solid #ef4444;
+        border-radius: 12px;
+        padding: 2rem;
         color: #fecdd3;
         text-align: center;
         margin-top: 1rem;
+        box-shadow: 0 10px 25px -5px rgba(239, 68, 68, 0.4);
     }
     
     .result-box-real {
-        background-color: #064e3b;
-        border: 2px solid #10b981;
-        border-radius: 10px;
-        padding: 1.5rem;
+        background: linear-gradient(135deg, #064e3b 0%, #002211 100%);
+        border: 1px solid #10b981;
+        border-radius: 12px;
+        padding: 2rem;
         color: #a7f3d0;
         text-align: center;
         margin-top: 1rem;
+        box-shadow: 0 10px 25px -5px rgba(16, 185, 129, 0.4);
     }
     
     .result-box-warning {
-        background-color: #451a03;
-        border: 2px solid #f59e0b;
-        border-radius: 10px;
-        padding: 1.5rem;
+        background: linear-gradient(135deg, #451a03 0%, #220000 100%);
+        border: 1px solid #f59e0b;
+        border-radius: 12px;
+        padding: 2rem;
         color: #fef3c7;
         text-align: center;
         margin-top: 1rem;
+        box-shadow: 0 10px 25px -5px rgba(245, 158, 11, 0.4);
     }
     
     .result-label {
@@ -184,13 +185,28 @@ def main():
             st.stop()
 
         st.markdown("---")
-        st.header("⚙️ Inference Controls")
-        
+        st.subheader("📊 CIFAKE Test Benchmarks")
+        for key, val in BENCHMARK_METRICS.items():
+            st.markdown(f"**{key}:** `{val}`")
+
+        st.markdown("---")
+        st.info(CONFIDENCE_DISCLAIMER)
+
+    # Navigation Tabs
+    tab_single, tab_batch, tab_engine, tab_about = st.tabs([
+        "🖼️ Single Image Analysis", 
+        "📁 Batch Processing", 
+        "⚙️ Engine Settings",
+        "ℹ️ Technical Details & Benchmark"
+    ])
+    
+    with tab_engine:
+        st.header("⚙️ Inference Engine Controls")
+        st.write("Modify the underlying mechanics of the ResNet-50 PyTorch model.")
         from app.strategies.strategy_registry import list_strategies
         registered_strats = list_strategies()
         strategy_options = [s["key"] for s in registered_strats]
         strategy_labels = {s["key"]: s["display_name"] for s in registered_strats}
-
 
         selected_mode_key = st.selectbox(
             "Inference Strategy",
@@ -200,48 +216,32 @@ def main():
             help="Select how the image is presented to the trained model."
         ) or "auto"
 
+        st.subheader("🛠️ Advanced Parameters")
+        patch_n_val = st.slider(
+            "Number of Patches (Patch/Hybrid)",
+            min_value=8,
+            max_value=64,
+            value=PATCH_N,
+            step=4,
+            help="Number of native 32x32 crops extracted across the image. Higher takes longer but is more accurate."
+        )
+        
+        aggregation_val = st.selectbox(
+            "Patch Aggregation",
+            options=PATCH_AGGREGATION_METHODS,
+            index=PATCH_AGGREGATION_METHODS.index(PATCH_AGGREGATION_DEFAULT),
+            help="Strategy to aggregate patch-level predictions. Mean is balanced, Max is highly sensitive."
+        )
+        
+        seed_val = st.number_input(
+            "Random Seed",
+            min_value=0,
+            max_value=9999,
+            value=42,
+            step=1,
+            help="Ensures deterministic patch crop locations for reproducibility."
+        )
 
-
-        with st.expander("🛠️ Advanced Settings", expanded=False):
-            patch_n_val = st.slider(
-                "Number of Patches (Patch/Hybrid)",
-                min_value=8,
-                max_value=64,
-                value=PATCH_N,
-                step=4,
-                help="Number of native 32x32 crops extracted across the image."
-            )
-            
-            aggregation_val = st.selectbox(
-                "Patch Aggregation",
-                options=PATCH_AGGREGATION_METHODS,
-                index=PATCH_AGGREGATION_METHODS.index(PATCH_AGGREGATION_DEFAULT),
-                help="Strategy to aggregate patch-level predictions."
-            )
-            
-            seed_val = st.number_input(
-                "Random Seed",
-                min_value=0,
-                max_value=9999,
-                value=42,
-                step=1,
-                help="Ensures deterministic patch crop locations."
-            )
-
-        st.markdown("---")
-        st.subheader("📊 CIFAKE Test Benchmarks")
-        for key, val in BENCHMARK_METRICS.items():
-            st.markdown(f"**{key}:** `{val}`")
-
-        st.markdown("---")
-        st.info(CONFIDENCE_DISCLAIMER)
-
-    # Navigation Tabs
-    tab_single, tab_batch, tab_about = st.tabs([
-        "🖼️ Single Image Analysis", 
-        "📁 Batch Processing", 
-        "ℹ️ Technical Details & Benchmark"
-    ])
 
     # ------------------------------------------------------------------
     # TAB 1: Single Image Inference
@@ -263,6 +263,7 @@ def main():
             )
 
             if uploaded_file is not None:
+                pre_meta = {}
                 try:
                     uploaded_file.seek(0)
                     raw_bytes = uploaded_file.read()
@@ -318,7 +319,6 @@ def main():
                 mode_str = str(selected_mode_key or "auto").upper()
                 with st.spinner(f"Executing PyTorch inference ({mode_str} mode)..."):
                     start_t = time.time()
-                    from app.predictor import predict_image_auto
 
                     res = predict_image_auto(
                         image,
@@ -407,18 +407,24 @@ def main():
                 # Diagnostics Expander
                 # --------------------------------------------------
                 with st.expander("🔬 Comprehensive Diagnostics & Stability Analysis", expanded=True):
-                    d_tab1, d_tab2, d_tab3, d_tab4, d_tab5, d_tab6, d_tab7, d_tab8 = st.tabs([
-                        "📊 Output & Entropy", "🧩 Patch Stability", "⚖️ Hybrid Comparison", "🌀 FFT Diagnostic", "📜 C2PA & Metadata", "🎯 Inference Regions", "🧠 AI Explanation", "🛡️ Live Degradation Test"
+                    d_tab_verdict, d_tab_visual, d_tab_robust, d_tab_expert = st.tabs([
+                        "💡 Plain-English Verdict", 
+                        "📸 Visual Evidence", 
+                        "🛡️ Live Robustness Check",
+                        "🔬 Deep Diagnostics (For Experts)"
                     ])
 
                     # Sub-Tab 1: Output & Entropy
-                    with d_tab1:
+                    with d_tab_expert:
+                        st.subheader('📊 Output & Entropy')
                         st.markdown(f"**Inference Timing:** `{elapsed_ms:.2f} ms` | **Device:** `{device.type.upper()}` | **Resolution:** `{res.get('image_dimensions')}`")
                         st.markdown(f"**Normalized Shannon Entropy:** `{res.get('normalized_entropy', 0.0):.4f}` (Raw: `{res.get('entropy', 0.0):.4f}`)")
                         st.info(f"**Uncertainty Level:** {res.get('uncertainty_level')}\n\n{res.get('uncertainty_note')}")
 
                     # Sub-Tab 2: Patch Stability & Binned Histogram
-                    with d_tab2:
+                    with d_tab_expert:
+                        st.markdown('---')
+                        st.subheader('🧩 Patch Stability')
                         if "stability" in res:
                             stab = res["stability"]
                             s_col1, s_col2, s_col3 = st.columns(3)
@@ -446,7 +452,9 @@ def main():
                             st.info("Patch stability diagnostics are active when in Native Patch or Hybrid inference modes.")
 
                     # Sub-Tab 3: Hybrid Comparison
-                    with d_tab3:
+                    with d_tab_expert:
+                        st.markdown('---')
+                        st.subheader('⚖️ Hybrid Comparison')
                         if "resize_prediction" in res and "patch_prediction" in res:
                             h_resize = res["resize_prediction"]
                             h_patch = res["patch_prediction"]
@@ -494,7 +502,9 @@ def main():
                             st.info("Hybrid comparison is available when running in 'Hybrid' mode.")
 
                     # Sub-Tab 4: Experimental FFT Diagnostic
-                    with d_tab4:
+                    with d_tab_expert:
+                        st.markdown('---')
+                        st.subheader('🌀 FFT Diagnostic')
                         fft_data = res.get("fft_diagnostic", {})
                         f_col1, f_col2 = st.columns(2)
                         with f_col1:
@@ -507,7 +517,9 @@ def main():
                         st.warning(f"⚠️ **Experimental Diagnostic Note:** {fft_data.get('interpretation')}")
 
                     # Sub-Tab 5: Stage 1 Metadata & C2PA Provenance
-                    with d_tab5:
+                    with d_tab_expert:
+                        st.markdown('---')
+                        st.subheader('📜 Stage 1 Metadata & C2PA Provenance')
                         meta_data = res.get("metadata_diagnostic", {})
                         m_col1, m_col2 = st.columns(2)
                         with m_col1:
@@ -527,7 +539,7 @@ def main():
                             st.info("No EXIF or PNG metadata headers detected in file (metadata unpopulated or stripped).")
 
                     # Sub-Tab 6: High-Scoring Inference Regions (Bounding Box Overlay)
-                    with d_tab6:
+                    with d_tab_visual:
                         st.caption("🎯 **Model Inference Highlights:** Draws bounding boxes around patches with high AI-fake scores.")
                         analysis_data = res.get("analysis", {})
                         regions = analysis_data.get("highlighted_regions", [])
@@ -568,7 +580,7 @@ def main():
                             st.success("✅ No localized suspicious AI patch regions detected above 50% fake threshold.")
 
                     # Sub-Tab 7: Faithful Explanation (Gemini API)
-                    with d_tab7:
+                    with d_tab_verdict:
                         st.subheader("🤖 Faithful Explanation (Gemini Vision)")
                         st.write("Generating a human-readable explanation for the visual cues behind the verdict...")
                         
@@ -593,7 +605,7 @@ def main():
                             st.write(f"**Note:** {explanation_data.get('consistency_note')}")
                             
                     # Sub-Tab 8: Live Degradation Test
-                    with d_tab8:
+                    with d_tab_robust:
                         st.subheader("🛡️ Live Robustness Check")
                         st.write("Test if the current verdict holds up against severe JPEG compression (Quality: 30) on-the-fly.")
                         

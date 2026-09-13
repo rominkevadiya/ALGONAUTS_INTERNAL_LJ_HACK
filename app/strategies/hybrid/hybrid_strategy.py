@@ -7,12 +7,14 @@ from app.config import (
     PATCH_AGGREGATION_DEFAULT,
     HYBRID_STRONG_DIFF,
 )
-from app.model_loader import load_model
+from app.model_loader import load_model, resolve_model_device
 from app.diagnostics.entropy import interpret_confidence
 from app.diagnostics.fft_spectral import compute_fft_spectral_diagnostic
 from app.strategies.patch.patch_extractor import prepare_image
 from app.strategies.resize.resize_strategy import predict_image
 from app.strategies.patch.patch_strategy import predict_image_patch_vote
+from app.strategies.base_strategy import BaseStrategy, validate_strategy_output
+from app.strategies.strategy_registry import register_strategy
 
 
 def predict_image_hybrid(
@@ -33,10 +35,7 @@ def predict_image_hybrid(
         _precomputed_fft: Optional precomputed FFT result dict from compute_fft_spectral_diagnostic().
                           Avoids redundant FFT computation when called from predict_image_auto().
     """
-    if model is None or device is None:
-        loaded_model, loaded_device = load_model()
-        model = model or loaded_model
-        device = device or loaded_device
+    model, device = resolve_model_device(model, device)
 
     clean_img = prepare_image(image)
 
@@ -187,8 +186,6 @@ def predict_image_hybrid(
     return validate_strategy_output(res, strategy_name="hybrid")
 
 
-from app.strategies.base_strategy import BaseStrategy, validate_strategy_output
-from app.strategies.strategy_registry import register_strategy
 
 
 class HybridStrategy(BaseStrategy):

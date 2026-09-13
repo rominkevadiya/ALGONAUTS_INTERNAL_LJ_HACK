@@ -23,6 +23,9 @@ def prepare_image(image: Image.Image) -> Image.Image:
     if not isinstance(image, Image.Image):
         raise ValueError(f"Expected PIL.Image.Image, got {type(image)}")
 
+    if getattr(image, "_is_prepared", False):
+        return image
+
     # Apply EXIF transpose (handles orientation metadata from phone/camera photos)
     image = ImageOps.exif_transpose(image)
 
@@ -30,7 +33,9 @@ def prepare_image(image: Image.Image) -> Image.Image:
     if image.mode != "RGB":
         image = image.convert("RGB")
 
-    return image.copy()
+    img = image.copy()
+    setattr(img, "_is_prepared", True)
+    return img
 
 
 def get_inference_transform() -> transforms.Compose:

@@ -98,9 +98,21 @@ def load_model(model_path: str | Path | None = None) -> tuple[nn.Module, torch.d
 
         return _cached_streamlit_loader(str(resolved_path))
 
-    except (ImportError, Exception):
+    except ImportError:
         # Fallback to module-level caching for tests / scripts
         cache_key = str(resolved_path.resolve()) if resolved_path.exists() else str(resolved_path)
         if cache_key not in _LOADED_MODEL_CACHE:
             _LOADED_MODEL_CACHE[cache_key] = _load_model_impl(resolved_path)
         return _LOADED_MODEL_CACHE[cache_key]
+
+
+def resolve_model_device(model: torch.nn.Module | None = None, device: torch.device | None = None) -> tuple[torch.nn.Module, torch.device]:
+    """
+    Helper to resolve model and device, loading them if not provided.
+    Reduces boilerplate in strategy files.
+    """
+    if model is None or device is None:
+        loaded_model, loaded_device = load_model()
+        model = model or loaded_model
+        device = device or loaded_device
+    return model, device

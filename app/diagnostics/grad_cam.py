@@ -18,8 +18,14 @@ class GradCAM:
         self.activations = None
         
         # Register hooks
-        self.target_layer.register_forward_hook(self.save_activation)
-        self.target_layer.register_full_backward_hook(self.save_gradient)
+        self.fwd_handle = self.target_layer.register_forward_hook(self.save_activation)
+        self.bwd_handle = self.target_layer.register_full_backward_hook(self.save_gradient)
+
+    def remove_hooks(self):
+        if hasattr(self, 'fwd_handle') and self.fwd_handle:
+            self.fwd_handle.remove()
+        if hasattr(self, 'bwd_handle') and self.bwd_handle:
+            self.bwd_handle.remove()
 
     def save_activation(self, module, input, output):
         self.activations = output
@@ -124,18 +130,24 @@ def run_grad_cam(model, image: Image.Image, target_class: int = 0) -> Image.Imag
     ])
     
     # We must ensure the model parameters require_grad for backward to work
-    for param in model.parameters():
+    original_requires_grad = {}
+    for name, param in model.named_parameters():
+        original_requires_grad[name] = param.requires_grad
         param.requires_grad = True
         
-    input_tensor = transform(image.convert("RGB")).unsqueeze(0)
-    device = next(model.parameters()).device
-    input_tensor = input_tensor.to(device)
-    
-    heatmap = grad_cam.generate_heatmap(input_tensor, target_class)
-    
-    # Clean up hooks
-    if grad_cam.target_layer:
-        # We can't easily unregister without saving the hook handle, but for Streamlit it's okay for one-offs.
-        pass
+    try:
+        input_tensor = transform(image.convert("RGB")).unsqueeze(0)
+        device = next(model.parameters()).device
+        input_tensor = input_tensor.to(device)
+        
+        heatmap = grad_cam.generate_heatmap(input_tensor, target_class)
+        
+    finally:
+        # Clean up hooks
+        grad_cam.remove_hooks()
+        
+        # Restore requires_grad
+        for name, param in model.named_parameters():
+            param.requires_grad = original_requires_grad[name]
         
     return apply_colormap_on_image(image, heatmap)

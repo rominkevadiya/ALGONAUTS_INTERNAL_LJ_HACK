@@ -32,7 +32,6 @@ PATCH_N = 32
 PATCH_THRESHOLD_PX = 128
 PATCH_AGGREGATION_DEFAULT = "mean"
 PATCH_AGGREGATION_METHODS = ["mean", "median", "majority", "logit_mean", "max", "top_k"]
-INFERENCE_MODES = ["auto", "resize", "patch", "hybrid", "multiscale", "tta"]
 
 # Multi-Scale Inference Configuration
 MULTISCALE_CONTEXT_SIZE = (128, 128)
@@ -45,27 +44,6 @@ MULTISCALE_FAKE_THRESHOLD = 0.60
 MULTISCALE_REAL_THRESHOLD = 0.40
 MAX_NATIVE_PATCHES = 256
 INFERENCE_BATCH_SIZE = 32
-
-class InferenceConfig:
-    patch_size = 32
-    context_size = 128
-    patch_stride = 32
-    top_k_ratio = 0.20
-
-    global_weight = 0.50
-    object_context_weight = 0.30
-    native_texture_weight = 0.20
-
-    fake_threshold = 0.60
-    real_threshold = 0.40
-
-    min_supporting_patch_ratio = 0.25
-    max_native_patches = 256
-    inference_batch_size = 32
-
-    enable_fft_diagnostics = True
-    enable_ycbcr_diagnostics = True
-    enable_debug_patch_output = False
 
 # Uncertainty & Agreement Thresholds
 ENTROPY_LOW_THRESHOLD = 0.2
@@ -89,7 +67,7 @@ DISCLAIMER_TEXT = (
 )
 
 CONFIDENCE_DISCLAIMER = (
-    "Confidence represents model probability, not a absolute guarantee of authenticity."
+    "Confidence represents model probability, not an absolute guarantee of authenticity."
 )
 
 # Benchmark Performance Metrics (Loaded dynamically from evaluation results if present)

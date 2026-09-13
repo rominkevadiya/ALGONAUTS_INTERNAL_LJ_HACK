@@ -4,9 +4,11 @@ import torch
 import torch.nn.functional as F
 
 from app.config import CLASS_MAPPING
-from app.model_loader import load_model
+from app.model_loader import load_model, resolve_model_device
 from app.diagnostics.entropy import interpret_confidence
 from app.strategies.patch.patch_extractor import preprocess_image
+from app.strategies.base_strategy import BaseStrategy, validate_strategy_output
+from app.strategies.strategy_registry import register_strategy
 
 
 def predict_image(
@@ -18,10 +20,7 @@ def predict_image(
     Baseline PyTorch inference: Resizes entire image to (32, 32) and executes ResNet-50.
     Preserves exact original behavior and return signature.
     """
-    if model is None or device is None:
-        loaded_model, loaded_device = load_model()
-        model = model or loaded_model
-        device = device or loaded_device
+    model, device = resolve_model_device(model, device)
 
     input_tensor = preprocess_image(image).to(device)
 
@@ -47,8 +46,6 @@ def predict_image(
     return validate_strategy_output(res, strategy_name="resize")
 
 
-from app.strategies.base_strategy import BaseStrategy, validate_strategy_output
-from app.strategies.strategy_registry import register_strategy
 
 
 class ResizeStrategy(BaseStrategy):
