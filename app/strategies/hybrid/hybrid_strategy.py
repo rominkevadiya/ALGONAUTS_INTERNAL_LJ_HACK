@@ -79,10 +79,8 @@ def predict_image_hybrid(
 
     # Branch 1: Baseline Resize is overwhelmingly REAL (resize_real >= 0.90)
     if resize_real >= 0.90:
-        if patch_res["label"] == "FAKE":
-            # Patch says FAKE. Determine if this is dark sensor noise or real AI artifact.
-            # Use FFT spectral score as tiebreaker: natural photos have LOW spectral score (<0.40).
-            # AI images often show HIGH spectral score due to GAN/diffusion frequency patterns.
+        if patch_res["label"] == "FAKE" or top_k_patch_fake >= 0.85:
+            # Patch says FAKE or Extreme Artifacts exist. Determine if this is dark sensor noise or real AI artifact.
             is_natural_spectrum = fft_score < 0.40
             is_lit_artifact = lit_patch_fake >= 0.60 and not dark_image
             is_very_confident_real = resize_real >= 0.98
@@ -95,12 +93,15 @@ def predict_image_hybrid(
                 hybrid_confidence = hybrid_real
                 agreement = "Real Photo (Camera Noise Filtered)"
             else:
-                # Lit foreground patches show AI artifacts AND spectrum is irregular
+                # Lit foreground patches show AI artifacts AND/OR spectrum is irregular
                 hybrid_fake = float((resize_fake * 0.35 + top_k_patch_fake * 0.65))
+                # Ensure it crosses 0.5 if triggered by extreme top_k
+                if top_k_patch_fake >= 0.85 and hybrid_fake < 0.5:
+                    hybrid_fake = float(top_k_patch_fake * 0.65 + resize_fake * 0.35)
                 hybrid_real = 1.0 - hybrid_fake
                 hybrid_label = "FAKE" if hybrid_fake > hybrid_real else "REAL"
                 hybrid_confidence = hybrid_fake if hybrid_label == "FAKE" else hybrid_real
-                agreement = "Local AI Artifacts Detected"
+                agreement = "Extreme Local AI Artifacts Detected" if top_k_patch_fake >= 0.85 else "Local AI Artifacts Detected"
         else:
             # Both agree REAL
             hybrid_fake = float(resize_fake * 0.5 + patch_fake * 0.5)
@@ -135,14 +136,22 @@ def predict_image_hybrid(
 
     # Branch 3: Moderate REAL from Baseline (0.50 <= resize_real < 0.90)
     else:
-        if patch_res["label"] == "FAKE" and (top_k_patch_fake >= 0.75 or (patch_fake - resize_fake) >= 0.35):
+        # Override to FAKE if extreme localized artifacts exist (top_k >= 85%), OR if patch is FAKE and has strong artifacts
+        if top_k_patch_fake >= 0.85 or (patch_res["label"] == "FAKE" and (top_k_patch_fake >= 0.70 or (patch_fake - resize_fake) >= 0.30)):
             # Strong localized AI artifacts; FFT boosts or confirms
-            fft_boost = 0.03 if fft_score >= 0.45 else 0.0
+            fft_boost = 0.05 if fft_score >= 0.45 else 0.0
+            
+            # Base hybrid fake calculation
             hybrid_fake = float(min(1.0, max(patch_fake, (resize_fake + top_k_patch_fake) / 2.0) + fft_boost))
+            
+            # If it triggered via the top_k override (mean patch might be REAL), guarantee it leans FAKE
+            if top_k_patch_fake >= 0.85 and hybrid_fake < 0.5:
+                hybrid_fake = float(top_k_patch_fake * 0.65 + resize_fake * 0.35 + fft_boost)
+                
             hybrid_real = 1.0 - hybrid_fake
             hybrid_label = "FAKE" if hybrid_fake > hybrid_real else "REAL"
             hybrid_confidence = hybrid_fake if hybrid_label == "FAKE" else hybrid_real
-            agreement = "Local AI Artifacts Detected"
+            agreement = "Extreme Local AI Artifacts Detected" if top_k_patch_fake >= 0.85 else "Local AI Artifacts Detected"
         elif fft_score >= 0.65 and patch_res["label"] == "FAKE":
             # FFT alone indicates highly irregular frequency pattern (strong AI generation signal)
             hybrid_fake = float((resize_fake + patch_fake + fft_score) / 3.0)
