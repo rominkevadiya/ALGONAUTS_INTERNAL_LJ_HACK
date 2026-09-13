@@ -35,6 +35,9 @@ from app.strategies.tta.tta_strategy import (
 from app.strategies.hybrid.hybrid_strategy import (
     predict_image_hybrid,
 )
+from app.strategies.multiscale.multiscale_strategy import (
+    predict_image_multiscale,
+)
 from app.strategies.auto.auto_strategy import (
     predict_image_auto,
     predict_batch,
@@ -55,6 +58,7 @@ __all__ = [
     "predict_image_patch_vote",
     "predict_image_tta",
     "predict_image_hybrid",
+    "predict_image_multiscale",
     "predict_image_auto",
     "predict_batch",
 ]

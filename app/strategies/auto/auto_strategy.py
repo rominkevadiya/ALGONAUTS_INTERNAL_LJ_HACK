@@ -91,6 +91,9 @@ def predict_image_auto(
             clean_img, model=model, device=device, n_patches=n_patches, seed=seed, aggregation=aggregation,
             _precomputed_fft=fft_diagnostic
         )
+    elif selected_mode == "multiscale":
+        from app.strategies.multiscale.multiscale_strategy import predict_image_multiscale
+        result = predict_image_multiscale(clean_img, model=model, device=device)
     elif selected_mode == "tta":
         result = predict_image_tta(clean_img, model=model, device=device)
 

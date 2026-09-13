@@ -186,6 +186,7 @@ def main():
         
         mode_labels = {
             "auto": "Automatic (Resolution-Aware)",
+            "multiscale": "Multi-Scale Evidence Fusion (3-Branch)",
             "resize": "Resize (Baseline 32×32)",
             "patch": "Native Patch Voting",
             "hybrid": "Hybrid (Resize + Patch)",

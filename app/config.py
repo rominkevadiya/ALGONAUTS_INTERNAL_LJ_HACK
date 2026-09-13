@@ -32,7 +32,40 @@ PATCH_N = 32
 PATCH_THRESHOLD_PX = 128
 PATCH_AGGREGATION_DEFAULT = "mean"
 PATCH_AGGREGATION_METHODS = ["mean", "median", "majority", "logit_mean", "max", "top_k"]
-INFERENCE_MODES = ["auto", "resize", "patch", "hybrid", "tta"]
+INFERENCE_MODES = ["auto", "resize", "patch", "hybrid", "multiscale", "tta"]
+
+# Multi-Scale Inference Configuration
+MULTISCALE_CONTEXT_SIZE = (128, 128)
+MULTISCALE_PATCH_SIZE = (32, 32)
+MULTISCALE_GLOBAL_WEIGHT = 0.50
+MULTISCALE_CONTEXT_WEIGHT = 0.30
+MULTISCALE_TEXTURE_WEIGHT = 0.20
+MULTISCALE_TOP_K_RATIO = 0.20
+MULTISCALE_FAKE_THRESHOLD = 0.60
+MULTISCALE_REAL_THRESHOLD = 0.40
+MAX_NATIVE_PATCHES = 256
+INFERENCE_BATCH_SIZE = 32
+
+class InferenceConfig:
+    patch_size = 32
+    context_size = 128
+    patch_stride = 32
+    top_k_ratio = 0.20
+
+    global_weight = 0.50
+    object_context_weight = 0.30
+    native_texture_weight = 0.20
+
+    fake_threshold = 0.60
+    real_threshold = 0.40
+
+    min_supporting_patch_ratio = 0.25
+    max_native_patches = 256
+    inference_batch_size = 32
+
+    enable_fft_diagnostics = True
+    enable_ycbcr_diagnostics = True
+    enable_debug_patch_output = False
 
 # Uncertainty & Agreement Thresholds
 ENTROPY_LOW_THRESHOLD = 0.2
