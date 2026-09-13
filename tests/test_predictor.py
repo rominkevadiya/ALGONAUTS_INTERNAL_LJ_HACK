@@ -7,7 +7,7 @@ import pytest
 from PIL import Image
 import torch
 
-from app.config import MODEL_PATH
+from app.config import MODEL_PATH, IMAGE_SIZE
 from app.model_loader import load_model, get_device
 from app.predictor import preprocess_image, predict_image, predict_batch
 
@@ -47,7 +47,7 @@ def test_preprocess_rgb_image():
     """
     img = Image.new("RGB", (300, 300), color=(128, 64, 32))
     tensor = preprocess_image(img)
-    assert tensor.shape == (1, 3, 224, 224)
+    assert tensor.shape == (1, 3, *IMAGE_SIZE)
     assert isinstance(tensor, torch.Tensor)
 
 
@@ -57,7 +57,7 @@ def test_preprocess_grayscale_image():
     """
     img = Image.new("L", (150, 150), color=200)
     tensor = preprocess_image(img)
-    assert tensor.shape == (1, 3, 224, 224)
+    assert tensor.shape == (1, 3, *IMAGE_SIZE)
 
 
 def test_preprocess_rgba_image():
@@ -66,7 +66,7 @@ def test_preprocess_rgba_image():
     """
     img = Image.new("RGBA", (200, 200), color=(255, 0, 0, 128))
     tensor = preprocess_image(img)
-    assert tensor.shape == (1, 3, 224, 224)
+    assert tensor.shape == (1, 3, *IMAGE_SIZE)
 
 
 def test_predict_image_output_structure(loaded_model_fixture):

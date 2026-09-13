@@ -1,8 +1,9 @@
 # Model Checkpoint Analysis Report
 
-**File Path:** `model_checkpoints/best_resnet50_cifake_original.pth`  
-**Original Model Path:** `model/best_resnet50_cifake.pth`  
-**Inspection Date:** 2026-09-12  
+**Active Checkpoint Path:** `model/best_resnet50_cifake_native32.pth`  
+**Checkpoint Backup Path:** `model_checkpoints/best_resnet50_cifake_native32.pth`  
+**Original Checkpoint Path:** `model_checkpoints/best_resnet50_cifake_original.pth`  
+**Inspection Date:** 2026-09-13  
 
 ---
 
@@ -14,7 +15,7 @@
 | **Top-Level Keys** | `['model_state_dict', 'class_names', 'class_to_idx', 'img_size']` |
 | **Contains `model_state_dict`** | **Yes** (`True`) |
 | **Total Stored Layer Tensors** | **320** |
-| **Total Parameter Count** | **23,565,303** (~23.57 Million elements) |
+| **Total Parameter Count** | **23,557,623** (~23.56 Million elements) |
 
 ---
 
@@ -24,16 +25,16 @@ The checkpoint contains key metadata embedded alongside the model weights:
 
 * **Class Names (`class_names`):** `['FAKE', 'REAL']`
 * **Class Index Mapping (`class_to_idx`):** `{'FAKE': 0, 'REAL': 1}`
-* **Input Image Resolution (`img_size`):** `224` (224x224 RGB images)
+* **Input Image Resolution (`img_size`):** `32` (32x32 RGB images)
 
 ---
 
 ## 3. Key Architecture Shapes
 
-### First Convolutional Layer
+### First Convolutional Layer (Native 32x32 Stem)
 * **Layer Name:** `conv1.weight`
-* **Tensor Shape:** `(64, 3, 7, 7)`
-* **Total Parameters:** `9,408`
+* **Tensor Shape:** `(64, 3, 3, 3)`
+* **Total Parameters:** `1,728`
 
 ### Final Classifier Head
 * **Linear Layer Weights (`fc.weight`):** `(2, 2048)` — `4,096` parameters
@@ -46,13 +47,13 @@ The checkpoint contains key metadata embedded alongside the model weights:
 
 | Group / Component | Layer Count | Key Tensor | Key Tensor Shape | Total Elements |
 | :--- | :--- | :--- | :--- | :--- |
-| **Initial Conv & BN** | 6 tensors | `conv1.weight` | `(64, 3, 7, 7)` | 9,664 |
+| **Initial Conv & BN** | 6 tensors | `conv1.weight` | `(64, 3, 3, 3)` | 1,984 |
 | **Layer Block 1 (3 Bottlenecks)** | 72 tensors | `layer1.0.conv1.weight` | `(64, 64, 1, 1)` | 215,808 |
 | **Layer Block 2 (4 Bottlenecks)** | 96 tensors | `layer2.0.conv1.weight` | `(128, 256, 1, 1)` | 1,219,584 |
 | **Layer Block 3 (6 Bottlenecks)** | 96 tensors | `layer3.0.conv1.weight` | `(256, 512, 1, 1)` | 7,098,368 |
 | **Layer Block 4 (3 Bottlenecks)** | 48 tensors | `layer4.0.conv1.weight` | `(512, 1024, 1, 1)` | 15,017,728 |
 | **Classifier FC** | 2 tensors | `fc.weight` | `(2, 2048)` | 4,098 |
-| **Total** | **320 Tensors** | — | — | **23,565,303** |
+| **Total** | **320 Tensors** | — | — | **23,557,623** |
 
 ---
 
@@ -63,7 +64,7 @@ The checkpoint contains key metadata embedded alongside the model weights:
 
 | Layer Name | Tensor Shape | Parameters |
 | :--- | :--- | :--- |
-| `conv1.weight` | `(64, 3, 7, 7)` | 9,408 |
+| `conv1.weight` | `(64, 3, 3, 3)` | 1,728 |
 | `bn1.weight` | `(64,)` | 64 |
 | `bn1.bias` | `(64,)` | 64 |
 | `bn1.running_mean` | `(64,)` | 64 |

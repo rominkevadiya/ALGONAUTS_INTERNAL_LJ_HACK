@@ -22,16 +22,13 @@ CLASS_MAPPING = {
 NUM_CLASSES = 2
 
 # Preprocessing Constants
-IMAGE_SIZE = (224, 224)
+IMAGE_SIZE = (32, 32)
 IMAGENET_MEAN = [0.485, 0.456, 0.406]
 IMAGENET_STD = [0.229, 0.224, 0.225]
 
 # Confidence Interpretation Thresholds
 HIGH_CONFIDENCE_THRESHOLD = 0.90
 MODERATE_CONFIDENCE_THRESHOLD = 0.70
-# Below this threshold the prediction is flagged for manual review
-# (derived from test_predictions.csv: conf ≥ 0.70 → 98.30% accuracy on retained set)
-REVIEW_THRESHOLD = 0.70
 
 # Disclaimer Messages
 DISCLAIMER_TEXT = (
@@ -46,15 +43,13 @@ CONFIDENCE_DISCLAIMER = (
 
 # Benchmark Performance (CIFAKE Test Set)
 BENCHMARK_METRICS = {
-    "Model Architecture": "ResNet-50 (Native 32×32 stem)",
+    "Model Architecture": "ResNet-50 (Native 32x32 Stem)",
     "Dataset": "CIFAKE",
-    "Native Input Size": "32 × 32",
-    "App Input Size": "224 × 224 (resized)",
+    "Input Size": "32 x 32",
     "Classes": "FAKE, REAL",
     "Test Accuracy": "97.42%",
     "Macro F1 Score": "0.9741",
     "ROC-AUC": "0.9964",
     "PR-AUC": "0.9966",
-    "Review Threshold": f">= {0.70:.0%} confidence",
     "Inference Speed": "~1092 img/sec (GPU Batch)"
 }
