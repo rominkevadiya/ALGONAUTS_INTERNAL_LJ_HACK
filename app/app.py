@@ -288,14 +288,14 @@ def main():
 
                     v_tab1, v_tab2 = st.tabs(["🖼️ Original Preview", "🔬 ResNet-50 Input (32×32 px)"])
                     with v_tab1:
-                        st.image(image, caption=f"Original High-Res Preview: {uploaded_file.name}", use_container_width=True)
+                        st.image(image, caption=f"Original High-Res Preview: {uploaded_file.name}", width="stretch")
                         st.caption(f"**Filename:** `{uploaded_file.name}` | **Resolution:** {width} × {height} px | **Mode:** {image.mode}")
                     with v_tab2:
-                        st.image(image_32, caption="ResNet-50 Stem Input (Exact 32×32 px Bicubic Downscale)", use_container_width=True)
+                        st.image(image_32, caption="ResNet-50 Stem Input (Exact 32×32 px Bicubic Downscale)", width="stretch")
                         st.info("💡 **Neural Network Perspective:** This 32×32 pixel image is the exact bicubic downscaled input fed into the baseline ResNet-50 model stem. Notice how fine pixel textures are compressed.")
 
                     st.markdown("<br>", unsafe_allow_html=True)
-                    analyze_clicked = st.button("🔎 Analyze Image", type="primary", use_container_width=True)
+                    analyze_clicked = st.button("🔎 Analyze Image", type="primary", width="stretch")
                 else:
                     analyze_clicked = False
             else:
