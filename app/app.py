@@ -395,8 +395,8 @@ def main():
                 # Diagnostics Expander
                 # --------------------------------------------------
                 with st.expander("🔬 Comprehensive Diagnostics & Stability Analysis", expanded=True):
-                    d_tab1, d_tab2, d_tab3, d_tab4, d_tab5 = st.tabs([
-                        "📊 Output & Entropy", "🧩 Patch Stability", "⚖️ Hybrid Comparison", "🌀 FFT Diagnostic", "📜 C2PA & Metadata"
+                    d_tab1, d_tab2, d_tab3, d_tab4, d_tab5, d_tab6 = st.tabs([
+                        "📊 Output & Entropy", "🧩 Patch Stability", "⚖️ Hybrid Comparison", "🌀 FFT Diagnostic", "📜 C2PA & Metadata", "🎯 Inference Regions"
                     ])
 
                     # Sub-Tab 1: Output & Entropy
@@ -512,6 +512,31 @@ def main():
                             st.json(m_summary)
                         else:
                             st.info("No EXIF or PNG metadata headers detected in file (metadata unpopulated or stripped).")
+
+                    # Sub-Tab 6: High-Scoring Inference Regions (Bounding Box Overlay)
+                    with d_tab6:
+                        st.caption("🎯 **Model Inference Highlights:** Draws bounding boxes around patches with high AI-fake scores.")
+                        analysis_data = res.get("analysis", {})
+                        regions = analysis_data.get("highlighted_regions", [])
+
+                        if not regions and "patch_prediction" in res:
+                            patch_p = res["patch_prediction"]
+                            coords_list = patch_p.get("patch_coordinates", [])
+                            probs_list = patch_p.get("patch_fake_probs", [])
+                            regions = [
+                                {"x": c[0], "y": c[1], "width": c[2]-c[0], "height": c[3]-c[1], "fake_probability": p, "source": "patch_vote"}
+                                for c, p in zip(coords_list, probs_list) if p >= 0.50
+                            ]
+
+                        if regions:
+                            from app.diagnostics.bounding_box import render_highlighted_regions
+                            boxed_image = render_highlighted_regions(image, regions)
+                            st.image(boxed_image, caption="Highlighted High-Scoring AI Inference Regions", width="stretch")
+                            st.markdown("---")
+                            st.write("📋 **Highlighted Region Data:**")
+                            st.dataframe(pd.DataFrame(regions), width="stretch")
+                        else:
+                            st.success("✅ No localized suspicious AI patch regions detected above 50% fake threshold.")
 
             elif uploaded_file is not None:
                 st.info("Click **Analyze Image** above to run the PyTorch inference & diagnostics engine.")
