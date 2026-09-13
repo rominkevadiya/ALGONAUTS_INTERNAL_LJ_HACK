@@ -300,9 +300,10 @@ def main():
 
                     st.warning(
                         "⚠️ **Important Note on Dataset Scope:** This ResNet-50 model was trained strictly on the **CIFAKE dataset** "
-                        "(32×32 CIFAR-10 images upscaled to 224×224). High-resolution webcam photographs of human faces or modern digital camera photos "
-                        "possess very different pixel statistics than CIFAR-10 real photos. As a result, the model may classify modern webcam photos as FAKE "
-                        "due to dataset domain shift."
+                        "(32×32 native resolution images — CIFAR-10 real photos vs Stable Diffusion v1.4 AI images). "
+                        "Modern AI generators (Gemini, Midjourney v6, DALL-E 3, etc.) were **not represented in training**. "
+                        "High-resolution images from these generators are downscaled to 32×32 before inference, which erases generation artifacts. "
+                        "As a result, the model may confidently classify modern AI-generated images as REAL due to **Out-of-Distribution domain shift**."
                     )
 
             elif uploaded_file is not None:
