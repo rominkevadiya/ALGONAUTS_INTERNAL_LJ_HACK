@@ -141,10 +141,8 @@ def inspect_checkpoint(checkpoint_path: Path):
 if __name__ == "__main__":
     script_dir = Path(__file__).resolve().parent
     root_dir = script_dir.parent
-    checkpoint_file = root_dir / "model" / "best_resnet50_cifake_native32.pth"
+    checkpoint_file = root_dir / "model" / "best_resnet50_cifake_native32_2.pth"
     if not checkpoint_file.exists():
-        checkpoint_file = script_dir / "best_resnet50_cifake_native32.pth"
-    if not checkpoint_file.exists():
-        checkpoint_file = script_dir / "best_resnet50_cifake_original.pth"
+        checkpoint_file = script_dir / "best_resnet50_cifake_native32_2.pth"
     inspect_checkpoint(checkpoint_file)
 

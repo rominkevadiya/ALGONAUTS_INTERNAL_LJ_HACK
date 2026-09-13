@@ -35,12 +35,12 @@ except (ImportError, ModuleNotFoundError):
 def get_inference_transform() -> transforms.Compose:
     """
     Returns torchvision transforms matching training preprocessing pipeline:
-    - Resize to 224 x 224
+    - Resize to (32, 32) using BICUBIC interpolation
     - ToTensor (scale [0, 255] -> [0.0, 1.0])
     - Normalize with ImageNet mean and std
     """
     return transforms.Compose([
-        transforms.Resize(IMAGE_SIZE),
+        transforms.Resize(IMAGE_SIZE, interpolation=transforms.InterpolationMode.BICUBIC),
         transforms.ToTensor(),
         transforms.Normalize(mean=IMAGENET_MEAN, std=IMAGENET_STD)
     ])
@@ -49,9 +49,9 @@ def get_inference_transform() -> transforms.Compose:
 def preprocess_image(image: Image.Image) -> torch.Tensor:
     """
     Safely preprocesses a PIL Image:
-    1. Validates and converts image to RGB (handling RGBA, Grayscale, CMYK, etc.)
-    2. Applies standard evaluation transforms.
-    3. Adds a batch dimension (shape: 1 x 3 x 224 x 224).
+    1. Validates and converts image to 3-channel RGB (with proper white background compositing for RGBA/transparency).
+    2. Applies evaluation transforms with bicubic interpolation.
+    3. Adds a batch dimension (shape: 1 x 3 x 32 x 32).
     """
     if not isinstance(image, Image.Image):
         raise ValueError("Input must be a valid PIL Image instance.")
@@ -62,8 +62,13 @@ def preprocess_image(image: Image.Image) -> torch.Tensor:
     except Exception:
         pass
 
-    # Ensure 3-channel RGB representation
-    if image.mode != "RGB":
+    # Ensure 3-channel RGB representation with proper alpha compositing
+    if image.mode in ("RGBA", "LA") or (image.mode == "P" and "transparency" in image.info):
+        alpha_mask = image.convert("RGBA").split()[-1]
+        background = Image.new("RGB", image.size, (255, 255, 255))
+        background.paste(image.convert("RGBA"), mask=alpha_mask)
+        image = background
+    elif image.mode != "RGB":
         image = image.convert("RGB")
 
     transform = get_inference_transform()
