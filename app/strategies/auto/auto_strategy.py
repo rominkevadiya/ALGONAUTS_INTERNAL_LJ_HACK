@@ -52,6 +52,34 @@ def predict_image_auto(
     # Compute FFT once at the dispatcher level for hybrid/auto to avoid double computation
     fft_diagnostic = compute_fft_spectral_diagnostic(clean_img)
 
+    # Check Stage 1 Metadata & C2PA Provenance before deep learning inference
+    from app.diagnostics.metadata_inspector import inspect_image_metadata
+    meta_diagnostic = inspect_image_metadata(clean_img)
+
+    # Short-circuit if verified AI metadata or C2PA manifest is present
+    if meta_diagnostic["provenance_verdict"] == "AI_GENERATED":
+        source_id = meta_diagnostic.get("source_identified") or "AI Generator Provenance Tag"
+        return {
+            "label": "FAKE",
+            "confidence": 1.00,
+            "fake_probability": 1.00,
+            "real_probability": 0.00,
+            "inference_mode": "metadata_provenance",
+            "agreement": f"C2PA / AI Provenance Verified ({source_id})",
+            "entropy": 0.0,
+            "normalized_entropy": 0.0,
+            "uncertainty_level": "Certain (100% Verified)",
+            "uncertainty_note": f"Image contains verified digital AI metadata: {source_id}. PyTorch model execution short-circuited.",
+            "fft_diagnostic": fft_diagnostic,
+            "metadata_diagnostic": meta_diagnostic,
+            "image_dimensions": f"{w} x {h}",
+            "confidence_info": {
+                "level": "High Confidence",
+                "color": "#ef4444",
+                "badge": "🤖 C2PA / AI PROVENANCE VERIFIED"
+            }
+        }
+
     if selected_mode == "resize":
         result = predict_image(clean_img, model=model, device=device)
     elif selected_mode == "patch":

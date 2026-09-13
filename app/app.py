@@ -335,7 +335,10 @@ def main():
                     active_mode = res.get("inference_mode", selected_mode_key)
 
                     # Status Box Rendering
-                    if conf < 0.70:
+                    if active_mode == "metadata_provenance":
+                        box_class = "result-box-fake"
+                        badge_text = "🤖 AI-GENERATED (C2PA / METADATA VERIFIED)"
+                    elif conf < 0.70:
                         box_class = "result-box-warning"
                         badge_text = "⚠️ LOW CONFIDENCE - REVIEW RECOMMENDED"
                     elif label == "FAKE":
@@ -351,6 +354,9 @@ def main():
                         <div class="result-subtext">Confidence Score: {conf * 100:.2f}% | Mode: {active_mode.upper()}</div>
                     </div>
                     """, unsafe_allow_html=True)
+
+                    if active_mode == "metadata_provenance":
+                        st.info(f"⚡ **Short-Circuit Notice:** Verified AI digital metadata detected (`{res['agreement']}`). Deep learning neural network forward pass bypassed.")
 
                     st.markdown("<br>", unsafe_allow_html=True)
                     st.subheader("📈 Classification Probabilities")
