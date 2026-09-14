@@ -93,8 +93,8 @@ Forensic inspection of `notebook/SignalScope_CIFAKE_ResNet50_Training.ipynb` (Ce
   - **Epoch 2**: Train Acc: `96.67%`, Train Loss: `0.0899` | Val Acc: `97.52%`, Val Loss: `0.0699`
   - **Epoch 3**: Train Acc: `97.42%`, Train Loss: `0.0674` | Val Acc: `97.40%`, Val Loss: `0.0716`
   - **Epoch 4**: Train Acc: `97.92%`, Train Loss: `0.0555` | Val Acc: `97.77%`, Val Loss: `0.0582`
-  - **Epoch 5**: Train Acc: **`98.30%`**, Train Loss: **`0.0460`** | Val Acc: **`98.06%`**, Val Loss: **`0.0556`**
-- **Checkpoint Selection**: `best_resnet50_cifake.pth` was saved at **Epoch 5** when validation accuracy peaked at **98.06%**.
+  - **Epoch 8**: Train Acc: **`~97.00%`**, Train Loss: **`~0.09`** | Val Acc: **`96.77%`**, Val MCC: **`0.9334`**
+- **Checkpoint Selection**: `best_resnet50_cifake_retrained.pth` was saved at **Epoch 8** when validation MCC peaked at **0.9334**.
 
 ---
 

@@ -6,7 +6,7 @@ from pathlib import Path
 
 # Base Paths
 BASE_DIR = Path(__file__).resolve().parent.parent
-MODEL_PATH = BASE_DIR / "model" / "best_resnet50_cifake_native32_2.pth"
+MODEL_PATH = BASE_DIR / "model" / "best_resnet50_cifake_retrained.pth"
 EVALUATION_DIR = BASE_DIR / "evaluation"
 OUTPUTS_DIR = BASE_DIR / "outputs"
 
@@ -40,7 +40,7 @@ MULTISCALE_GLOBAL_WEIGHT = 0.50
 MULTISCALE_CONTEXT_WEIGHT = 0.30
 MULTISCALE_TEXTURE_WEIGHT = 0.20
 MULTISCALE_TOP_K_RATIO = 0.20
-MULTISCALE_FAKE_THRESHOLD = 0.60
+MULTISCALE_FAKE_THRESHOLD = 0.608
 MULTISCALE_REAL_THRESHOLD = 0.40
 MAX_NATIVE_PATCHES = 256
 INFERENCE_BATCH_SIZE = 32

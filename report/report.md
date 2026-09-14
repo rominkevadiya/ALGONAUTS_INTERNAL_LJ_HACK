@@ -27,12 +27,12 @@
 
 ### 4. Metric & result
 *Note: Evaluated on the held-out test sets.*
-- **Overall AUC (CIFAKE):** 0.9987
+- **Overall AUC (CIFAKE):** 0.9951
 - **Unseen-Split AUC (Mock Dataset):** ~0.95+ (See /evaluation/unseen_generator_metrics.csv)
-- **Macro-F1 (CIFAKE):** 0.9832
-- **Accuracy (CIFAKE):** 98.33%
-- **False-Positive Rate:** 1.69% at 0.5 threshold.
-- **Confusion Matrix:** True Positive: 9834, True Negative: 9831, False Positive: 169, False Negative: 166.
+- **Macro-F1 (CIFAKE):** 0.9677
+- **Accuracy (CIFAKE):** 96.77%
+- **False-Positive Rate:** 2.95% at 0.608 threshold.
+- **Confusion Matrix:** True Positive: 9649, True Negative: 9705, False Positive: 295, False Negative: 351.
 
 ### 5. Baseline
 The provided baseline model is expected to suffer heavily on the unseen-split. By using the Native Patch Voting + Hybrid Consensus (ResNet-50), our system filters out localized artifacts, preventing catastrophic failure on unseen generators. The Hybrid architecture specifically targets high-frequency synthetic generator patterns (verified by the experimental 2D FFT spectral diagnostics) giving a significant edge over standard global-resize baselines.

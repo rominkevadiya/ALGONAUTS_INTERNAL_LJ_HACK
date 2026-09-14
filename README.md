@@ -64,11 +64,11 @@ Evaluated on the official **CIFAKE test dataset** and a **Held-out Unseen-Genera
 
 | Metric | Value (CIFAKE) | Value (Unseen-Generator Split) |
 | :--- | :---: | :---: |
-| **Test Accuracy** | **98.33%** | **100.00%** |
-| **Macro F1-Score** | **0.9832** | **1.0000** |
-| **Overall ROC-AUC** | **0.9987** | **1.0000** |
-| **Sensitivity (Recall)** | **98.34%** | **100.00%** |
-| **Specificity** | **98.31%** | **100.00%** |
+| **Test Accuracy** | **96.77%** | **100.00%** |
+| **Macro F1-Score** | **0.9677** | **1.0000** |
+| **Overall ROC-AUC** | **0.9951** | **1.0000** |
+| **Sensitivity (Recall)** | **96.49%** | **100.00%** |
+| **Specificity** | **97.05%** | **100.00%** |
 | **Inference Speed** | **~916 img/sec** | **~916 img/sec** |
 
 *(Note: The Unseen Generator split was simulated with a synthetic dataset for the hackathon evaluation script. In real deployment, the Unseen Split AUC is computed by the judges).*
@@ -98,7 +98,7 @@ ALGONAUTS_INTERNAL_LJ_HACK-main/
 ├── requirements.txt                        # Dependency list
 │
 ├── model/                                  # Model weights & inference code
-│   ├── best_resnet50_cifake_native32_2.pth 
+│   ├── best_resnet50_cifake_retrained.pth 
 │   └── generator_attribution.py            # Bonus B
 │
 ├── app/                                    # Source code (UI & logic)

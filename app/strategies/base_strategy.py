@@ -60,6 +60,7 @@ REQUIRED_OUTPUT_KEYS = {
     "fake_probability",
     "real_probability",
     "inference_mode",
+    "threshold",
 }
 
 

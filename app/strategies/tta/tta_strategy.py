@@ -10,6 +10,7 @@ from app.diagnostics.entropy import interpret_confidence
 from app.strategies.patch.patch_extractor import prepare_image, get_inference_transform
 from app.strategies.base_strategy import BaseStrategy, validate_strategy_output
 from app.strategies.strategy_registry import register_strategy
+from app.config import MULTISCALE_FAKE_THRESHOLD
 
 
 def _apply_brightness(img: Image.Image, factor: float) -> Image.Image:
@@ -98,11 +99,11 @@ def predict_image_tta(
     std_fake = float(np.std(fake_probs))
 
     # Self-consistency check: original vs. H-flip prediction agreement
-    orig_label = "FAKE" if fake_probs[0] > 0.5 else "REAL"
-    hflip_label = "FAKE" if fake_probs[1] > 0.5 else "REAL"
+    orig_label = "FAKE" if fake_probs[0] >= MULTISCALE_FAKE_THRESHOLD else "REAL"
+    hflip_label = "FAKE" if fake_probs[1] >= MULTISCALE_FAKE_THRESHOLD else "REAL"
     self_consistent = orig_label == hflip_label
 
-    label = "FAKE" if weighted_fake > weighted_real else "REAL"
+    label = "FAKE" if weighted_fake >= MULTISCALE_FAKE_THRESHOLD else "REAL"
     confidence = weighted_fake if label == "FAKE" else weighted_real
 
     res = {
@@ -123,6 +124,7 @@ def predict_image_tta(
         "orig_label": orig_label,
         "hflip_label": hflip_label,
         "inference_mode": "tta",
+        "threshold": MULTISCALE_FAKE_THRESHOLD,
         "confidence_info": interpret_confidence(confidence)
     }
     return validate_strategy_output(res, strategy_name="tta")

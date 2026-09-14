@@ -550,7 +550,7 @@ def main():
                             probs_list = patch_p.get("patch_fake_probs", [])
                             regions = [
                                 {"x": c[0], "y": c[1], "width": c[2]-c[0], "height": c[3]-c[1], "fake_probability": p, "source": "patch_vote"}
-                                for c, p in zip(coords_list, probs_list) if p >= 0.50
+                                for c, p in zip(coords_list, probs_list) if p >= 0.608
                             ]
 
                         if regions:
@@ -562,7 +562,7 @@ def main():
                             
                             st.image(boxed_image, caption="Bounding Box Localization", width="stretch")
                         else:
-                            st.success("✅ No localized suspicious AI patch regions detected above 50% fake threshold.")
+                            st.success("✅ No localized suspicious AI patch regions detected above the 60.8% model fake threshold.")
 
                     # Sub-Tab 7: Faithful Explanation (Gemini API)
                     with d_tab_verdict:

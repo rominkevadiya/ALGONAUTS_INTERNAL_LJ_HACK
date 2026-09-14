@@ -41,7 +41,7 @@ Key objectives:
 - **Single-Image Screening**: Instant upload, preview, and classification with color-coded result boxes (Red for FAKE, Green for REAL, Amber for Low Confidence).
 - **Batch Processing**: Simultaneous multi-image processing with downloadable CSV report.
 - **Live Diagnostics**: Real-time display of Softmax probabilities, inference modes, raw logits, and execution device to prove live computation.
-- **Pretrained Checkpoint**: Loads pre-trained weights (`model/best_resnet50_cifake_native32_2.pth`) without retraining during application execution.
+- **Pretrained Checkpoint**: Loads pre-trained weights (`model/best_resnet50_cifake_retrained.pth`) without retraining during application execution.
 
 ---
 

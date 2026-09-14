@@ -1,7 +1,7 @@
 # Model Checkpoint Analysis Report
 
-**Active Checkpoint Path:** `model/best_resnet50_cifake_native32_2.pth`  
-**Checkpoint Backup Path:** `model_checkpoints/best_resnet50_cifake_native32_2.pth`  
+**Active Checkpoint Path:** `model/best_resnet50_cifake_retrained.pth`  
+**Checkpoint Backup Path:** `model_checkpoints/best_resnet50_cifake_retrained.pth`  
 **Inspection Date:** 2026-09-13  
 
 ---

@@ -324,6 +324,7 @@ def predict_image_multiscale(
             "highlighted_regions": highlighted_regions
         },
 
+        "threshold": MULTISCALE_FAKE_THRESHOLD,
         "confidence_info": interpret_confidence(final_confidence)
     }
 

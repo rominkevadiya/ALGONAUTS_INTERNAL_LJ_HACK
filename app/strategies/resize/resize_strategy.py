@@ -3,7 +3,7 @@ from PIL import Image
 import torch
 import torch.nn.functional as F
 
-from app.config import CLASS_MAPPING
+from app.config import CLASS_MAPPING, MULTISCALE_FAKE_THRESHOLD
 from app.model_loader import load_model, resolve_model_device
 from app.diagnostics.entropy import interpret_confidence
 from app.strategies.patch.patch_extractor import preprocess_image
@@ -31,8 +31,7 @@ def predict_image(
     fake_prob = float(probabilities[0].item())
     real_prob = float(probabilities[1].item())
 
-    predicted_class_idx = int(torch.argmax(probabilities).item())
-    predicted_label = CLASS_MAPPING.get(predicted_class_idx, "UNKNOWN")
+    predicted_label = "FAKE" if fake_prob >= MULTISCALE_FAKE_THRESHOLD else "REAL"
     confidence = fake_prob if predicted_label == "FAKE" else real_prob
 
     res = {
@@ -41,6 +40,7 @@ def predict_image(
         "fake_probability": fake_prob,
         "real_probability": real_prob,
         "inference_mode": "resize",
+        "threshold": MULTISCALE_FAKE_THRESHOLD,
         "confidence_info": interpret_confidence(confidence)
     }
     return validate_strategy_output(res, strategy_name="resize")

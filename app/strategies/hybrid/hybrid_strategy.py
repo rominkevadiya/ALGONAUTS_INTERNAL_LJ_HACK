@@ -6,6 +6,7 @@ from app.config import (
     PATCH_N,
     PATCH_AGGREGATION_DEFAULT,
     HYBRID_STRONG_DIFF,
+    MULTISCALE_FAKE_THRESHOLD,
 )
 from app.model_loader import load_model, resolve_model_device
 from app.diagnostics.entropy import interpret_confidence
@@ -85,7 +86,7 @@ def predict_image_hybrid(
             # Strong evidence from multiple patches AND spectral irregularity required to override a >90% REAL baseline
             hybrid_fake = float((resize_fake * 0.35 + top_k_patch_fake * 0.65))
             hybrid_real = 1.0 - hybrid_fake
-            hybrid_label = "FAKE" if hybrid_fake > hybrid_real else "REAL"
+            hybrid_label = "FAKE" if hybrid_fake >= MULTISCALE_FAKE_THRESHOLD else "REAL"
             hybrid_confidence = hybrid_fake if hybrid_label == "FAKE" else hybrid_real
             agreement = "Extreme Local AI Artifacts Detected" if top_k_patch_fake >= 0.92 else "Local AI Artifacts Detected"
         else:
@@ -113,7 +114,7 @@ def predict_image_hybrid(
             # Trust native 1:1 pixel patches (patch_fake) which are free of downscaling distortion
             hybrid_fake = float(patch_fake * 0.80 + resize_fake * 0.20)
             hybrid_real = 1.0 - hybrid_fake
-            hybrid_label = "REAL" if hybrid_real > hybrid_fake else "FAKE"
+            hybrid_label = "FAKE" if hybrid_fake >= MULTISCALE_FAKE_THRESHOLD else "REAL"
             hybrid_confidence = hybrid_real if hybrid_label == "REAL" else hybrid_fake
             agreement = "Native Patch Confirmed (Aliasing Filtered)"
 
@@ -133,20 +134,20 @@ def predict_image_hybrid(
                 hybrid_fake = float(top_k_patch_fake * 0.65 + resize_fake * 0.35 + fft_boost)
                 
             hybrid_real = 1.0 - hybrid_fake
-            hybrid_label = "FAKE" if hybrid_fake > hybrid_real else "REAL"
+            hybrid_label = "FAKE" if hybrid_fake >= MULTISCALE_FAKE_THRESHOLD else "REAL"
             hybrid_confidence = hybrid_fake if hybrid_label == "FAKE" else hybrid_real
             agreement = "Extreme Local AI Artifacts Detected" if top_k_patch_fake >= 0.90 else "Local AI Artifacts Detected"
         elif fft_score >= 0.65 and patch_res["label"] == "FAKE":
             # FFT alone indicates highly irregular frequency pattern (strong AI generation signal)
             hybrid_fake = float((resize_fake + patch_fake + fft_score) / 3.0)
             hybrid_real = 1.0 - hybrid_fake
-            hybrid_label = "FAKE" if hybrid_fake > hybrid_real else "REAL"
+            hybrid_label = "FAKE" if hybrid_fake >= MULTISCALE_FAKE_THRESHOLD else "REAL"
             hybrid_confidence = hybrid_fake if hybrid_label == "FAKE" else hybrid_real
             agreement = "FFT Spectral Anomaly Detected"
         else:
             hybrid_fake = float((resize_fake + patch_fake) / 2.0)
             hybrid_real = 1.0 - hybrid_fake
-            hybrid_label = "FAKE" if hybrid_fake > hybrid_real else "REAL"
+            hybrid_label = "FAKE" if hybrid_fake >= MULTISCALE_FAKE_THRESHOLD else "REAL"
             hybrid_confidence = hybrid_fake if hybrid_label == "FAKE" else hybrid_real
             agreement = "Strategy Disagreement" if resize_res["label"] != patch_res["label"] else "Moderate Agreement"
 
@@ -181,6 +182,7 @@ def predict_image_hybrid(
         },
         "fft_diagnostic": fft_res,
         "inference_mode": "hybrid",
+        "threshold": MULTISCALE_FAKE_THRESHOLD,
         "confidence_info": interpret_confidence(hybrid_confidence)
     }
     return validate_strategy_output(res, strategy_name="hybrid")

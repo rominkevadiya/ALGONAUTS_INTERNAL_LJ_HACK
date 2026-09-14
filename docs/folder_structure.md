@@ -6,7 +6,7 @@ Below is the complete directory structure for the SignalScope project, detailing
 ALGONAUTS_INTERNAL_LJ_HACK-main/
 │
 ├── model/
-│   └── best_resnet50_cifake_native32_2.pth # Trained PyTorch ResNet-50 checkpoint (~94.3 MB)
+│   └── best_resnet50_cifake_retrained.pth # Trained PyTorch ResNet-50 checkpoint (~94.3 MB)
 │
 ├── evaluation/                             # Scripts and results for model benchmarking
 │   ├── final_evaluation_metrics.csv        # Numerical test metrics export

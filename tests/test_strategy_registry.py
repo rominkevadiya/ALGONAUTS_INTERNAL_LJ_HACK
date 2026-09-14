@@ -40,7 +40,8 @@ def test_base_strategy_output_validation():
         "confidence": 0.95,
         "fake_probability": 0.05,
         "real_probability": 0.95,
-        "inference_mode": "test_mode"
+        "inference_mode": "test_mode",
+        "threshold": 0.608
     }
     validated = validate_strategy_output(valid_res, strategy_name="test")
     assert validated["label"] == "REAL"

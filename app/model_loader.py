@@ -8,6 +8,14 @@ from pathlib import Path
 import torch
 import torch.nn as nn
 from torchvision import models
+import numpy
+
+# PyTorch 2.6+ security update: allowlist numpy scalar for unpickling checkpoint
+try:
+    if hasattr(torch.serialization, 'add_safe_globals'):
+        torch.serialization.add_safe_globals([numpy._core.multiarray.scalar])
+except Exception:
+    pass
 
 try:
     from app.config import MODEL_PATH, NUM_CLASSES
@@ -34,13 +42,13 @@ def _load_model_impl(target_path: Path) -> tuple[nn.Module, torch.device]:
     if not target_path.exists():
         raise FileNotFoundError(
             f"Model checkpoint file not found at: {target_path}. "
-            "Please ensure 'best_resnet50_cifake_native32_2.pth' exists in the model directory."
+            "Please ensure 'best_resnet50_cifake_retrained.pth' exists in the model directory."
         )
 
     device = get_device()
 
     try:
-        checkpoint = torch.load(target_path, map_location=device)
+        checkpoint = torch.load(target_path, map_location=device, weights_only=False)
     except Exception as e:
         raise RuntimeError(
             f"Failed to load checkpoint from {target_path}. File may be corrupted or unreadable. Error: {e}"

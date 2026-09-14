@@ -10,6 +10,7 @@ from app.config import (
     PATCH_N,
     PATCH_AGGREGATION_DEFAULT,
     PATCH_AGGREGATION_METHODS,
+    MULTISCALE_FAKE_THRESHOLD,
 )
 from app.model_loader import load_model, resolve_model_device
 from app.diagnostics.entropy import interpret_confidence
@@ -137,7 +138,7 @@ def predict_image_patch_vote(
         fake_prob = weighted_mean_fake
         real_prob = weighted_mean_real
 
-    label = "FAKE" if fake_prob > real_prob else "REAL"
+    label = "FAKE" if fake_prob >= MULTISCALE_FAKE_THRESHOLD else "REAL"
     confidence = fake_prob if label == "FAKE" else real_prob
 
     res = {
@@ -155,6 +156,7 @@ def predict_image_patch_vote(
         "lit_patch_fake_prob": lit_patch_fake,
         "patch_coordinates": coords,
         "inference_mode": "patch",
+        "threshold": MULTISCALE_FAKE_THRESHOLD,
         "confidence_info": interpret_confidence(confidence)
     }
     

@@ -23,4 +23,4 @@ Welcome to the technical documentation for **SignalScope**, an AI-generated imag
 ---
 
 > [!NOTE]
-> *Benchmark Note: All performance numbers reported in this documentation are benchmark results from the active **native32 checkpoint** (`model/best_resnet50_cifake_native32_2.pth`) evaluated on the official CIFAKE test dataset (20,000 images): **98.33% accuracy**, **0.9832 Macro F1**, **0.9987 ROC-AUC**. These numbers reflect the CIFAR-10 derived image distribution ($32 \times 32$ upscaled to $224 \times 224$). High-resolution digital photographs or modern webcam photos may exhibit domain shift.*
+> *Benchmark Note: All performance numbers reported in this documentation are benchmark results from the active **native32 checkpoint** (`model/best_resnet50_cifake_retrained.pth`) evaluated on the official CIFAKE test dataset (20,000 images): **96.77% accuracy**, **0.9677 Macro F1**, **0.9951 ROC-AUC**. These numbers reflect the CIFAR-10 derived image distribution ($32 \times 32$ upscaled to $224 \times 224$). High-resolution digital photographs or modern webcam photos may exhibit domain shift.*

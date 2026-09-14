@@ -6,6 +6,14 @@ Loads model_checkpoints/best_resnet50_cifake_original.pth and prints detailed de
 import sys
 from pathlib import Path
 import torch
+import torchvision.models as models
+import numpy
+
+try:
+    if hasattr(torch.serialization, 'add_safe_globals'):
+        torch.serialization.add_safe_globals([numpy._core.multiarray.scalar])
+except Exception:
+    pass
 
 
 def inspect_checkpoint(checkpoint_path: Path):
@@ -19,7 +27,7 @@ def inspect_checkpoint(checkpoint_path: Path):
 
     # 1. Load checkpoint
     try:
-        checkpoint = torch.load(checkpoint_path, map_location="cpu")
+        checkpoint = torch.load(checkpoint_path, map_location="cpu", weights_only=False)
     except Exception as e:
         print(f"Error loading checkpoint: {e}")
         sys.exit(1)
@@ -141,8 +149,8 @@ def inspect_checkpoint(checkpoint_path: Path):
 if __name__ == "__main__":
     script_dir = Path(__file__).resolve().parent
     root_dir = script_dir.parent
-    checkpoint_file = root_dir / "model" / "best_resnet50_cifake_native32_2.pth"
+    checkpoint_file = root_dir / "model" / "best_resnet50_cifake_retrained.pth"
     if not checkpoint_file.exists():
-        checkpoint_file = script_dir / "best_resnet50_cifake_native32_2.pth"
+        checkpoint_file = script_dir / "best_resnet50_cifake_retrained.pth"
     inspect_checkpoint(checkpoint_file)
 
