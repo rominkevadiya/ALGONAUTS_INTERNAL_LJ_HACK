@@ -68,7 +68,7 @@ def predict_image_auto(
     mode: str = "auto",
     n_patches: int = 0,
     seed: int = 42,
-    aggregation: str = "patch_vote",
+    aggregation: str = "mean",
     precomputed_metadata: Dict[str, Any] = None
 ):
     """

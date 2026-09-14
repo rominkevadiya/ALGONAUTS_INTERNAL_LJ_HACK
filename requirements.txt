@@ -10,3 +10,4 @@ streamlit
 pytest
 google-genai
 python-dotenv
+opencv-python-headless
