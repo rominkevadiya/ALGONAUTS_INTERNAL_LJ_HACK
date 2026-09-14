@@ -343,6 +343,39 @@ def main():
                 real_prob = res["real_probability"]
                 active_mode = res.get("inference_mode", selected_mode_key)
 
+                from concurrent.futures import ThreadPoolExecutor
+                
+                # Pre-compute regions for the explainer since it's needed early for concurrency
+                _analysis_data = res.get("analysis", {})
+                _regions = _analysis_data.get("highlighted_regions", [])
+                if not _regions and "patch_prediction" in res:
+                    _patch_p = res["patch_prediction"]
+                    _coords_list = _patch_p.get("patch_coordinates", [])
+                    _probs_list = _patch_p.get("patch_fake_probs", [])
+                    _regions = [
+                        {"x": c[0], "y": c[1], "width": c[2]-c[0], "height": c[3]-c[1], "fake_probability": p, "source": "patch_vote"}
+                        for c, p in zip(_coords_list, _probs_list) if p >= 0.50
+                    ]
+
+                _gemini_executor = ThreadPoolExecutor(max_workers=2)
+                _future_attribution = None
+                if label == "FAKE" or fake_prob > 0.5:
+                    try:
+                        from model.generator_attribution import predict_generator_attribution
+                        _future_attribution = _gemini_executor.submit(predict_generator_attribution, image)
+                    except ImportError:
+                        pass
+                
+                from app.diagnostics.explainer import generate_faithful_explanation
+                _future_explanation = _gemini_executor.submit(
+                    generate_faithful_explanation,
+                    image=image,
+                    prediction_label=label,
+                    regions=_regions,
+                    caption=caption_input if caption_input else None,
+                    diagnostic_context=res
+                )
+
                 # Status Box Rendering
                 if active_mode == "metadata_provenance":
                     box_class = "result-box-fake"
@@ -385,18 +418,20 @@ def main():
                     st.markdown("<br>", unsafe_allow_html=True)
                     st.subheader("🕵️‍♂️ Generator Attribution")
                     with st.spinner("Analyzing artifacts to determine generator family..."):
-                        try:
-                            from model.generator_attribution import predict_generator_attribution
-                            attribution = predict_generator_attribution(image)
-                            
-                            a_col1, a_col2 = st.columns(2)
-                            with a_col1:
-                                st.metric("Likely Generator Family", attribution.get("family", "Unknown"))
-                            with a_col2:
-                                st.metric("Specific Model", attribution.get("specific_model", "Unknown"))
-                            
-                            st.caption(f"**Attribution Note:** {attribution.get('note', '')}")
-                        except ImportError:
+                        if _future_attribution is not None:
+                            try:
+                                attribution = _future_attribution.result()
+                                
+                                a_col1, a_col2 = st.columns(2)
+                                with a_col1:
+                                    st.metric("Likely Generator Family", attribution.get("family", "Unknown"))
+                                with a_col2:
+                                    st.metric("Specific Model", attribution.get("specific_model", "Unknown"))
+                                
+                                st.caption(f"**Attribution Note:** {attribution.get('note', '')}")
+                            except Exception as e:
+                                st.warning("Generator attribution encountered an error.")
+                        else:
                             st.warning("Generator attribution module not found.")
 
 
@@ -571,13 +606,10 @@ def main():
                         
                         from app.diagnostics.explainer import generate_faithful_explanation
                         with st.spinner("Analyzing visual cues and multimodal consistency..."):
-                            explanation_data = generate_faithful_explanation(
-                                image=image,
-                                prediction_label=label,
-                                regions=regions,
-                                caption=caption_input if caption_input else None,
-                                diagnostic_context=res
-                            )
+                            try:
+                                explanation_data = _future_explanation.result()
+                            except Exception as e:
+                                explanation_data = {"explanation": "Gemini explainer encountered an error.", "consistency_score": None, "consistency_note": "N/A"}
                         
                         st.markdown(f"**Explanation:**\n> {explanation_data.get('explanation')}")
                         
