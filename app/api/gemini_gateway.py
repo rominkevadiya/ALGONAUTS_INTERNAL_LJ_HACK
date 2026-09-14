@@ -67,7 +67,7 @@ def _image_hash(image: Union[Image.Image, bytes, bytearray]) -> str:
     return digest.hexdigest()
 
 
-def _cache_key(*, task_id: str, prompt: str, image: Optional[Union[Image.Image, bytes, bytearray]], temperature: Optional[float], max_output_tokens: Optional[int], prompt_version: Optional[str]) -> str:
+def _cache_key(*, task_id: str, prompt: str, image: Optional[Union[Image.Image, bytes, bytearray]], temperature: Optional[float], max_output_tokens: Optional[int], prompt_version: Optional[str], response_mime_type: Optional[str]) -> str:
     """Build a deterministic key from all response-affecting request inputs."""
     components = {
         "task_id": task_id,
@@ -77,6 +77,7 @@ def _cache_key(*, task_id: str, prompt: str, image: Optional[Union[Image.Image, 
         "model": GEMINI_MODEL,
         "temperature": temperature,
         "max_output_tokens": max_output_tokens,
+        "response_mime_type": response_mime_type,
     }
     return hashlib.sha256(repr(sorted(components.items())).encode("utf-8")).hexdigest()
 
@@ -136,7 +137,7 @@ def _acquire_request_slot() -> Optional[float]:
         return None
 
 
-def _generate(*, task_id: str, prompt: str, image: Optional[Union[Image.Image, bytes, bytearray]], temperature: Optional[float], max_output_tokens: Optional[int], prompt_version: Optional[str]) -> Dict[str, Any]:
+def _generate(*, task_id: str, prompt: str, image: Optional[Union[Image.Image, bytes, bytearray]], temperature: Optional[float], max_output_tokens: Optional[int], prompt_version: Optional[str], response_mime_type: Optional[str]) -> Dict[str, Any]:
     if genai is None or types is None:
         return _result(False, error="google_genai_not_installed")
     if not os.getenv("GEMINI_API_KEY"):
@@ -144,7 +145,7 @@ def _generate(*, task_id: str, prompt: str, image: Optional[Union[Image.Image, b
     if not task_id.strip() or not prompt.strip():
         return _result(False, error="invalid_request")
 
-    key = _cache_key(task_id=task_id, prompt=prompt, image=image, temperature=temperature, max_output_tokens=max_output_tokens, prompt_version=prompt_version)
+    key = _cache_key(task_id=task_id, prompt=prompt, image=image, temperature=temperature, max_output_tokens=max_output_tokens, prompt_version=prompt_version, response_mime_type=response_mime_type)
     with _CACHE_LOCK:
         cached = _CACHE.get(key)
         if cached is not None:
@@ -168,7 +169,10 @@ def _generate(*, task_id: str, prompt: str, image: Optional[Union[Image.Image, b
         client = _get_client()
         if client is None:
             return _result(False, error="missing_api_key", cache_miss=True)
-        config = types.GenerateContentConfig(temperature=temperature, max_output_tokens=max_output_tokens)
+        config_kwargs: Dict[str, Any] = {"temperature": temperature, "max_output_tokens": max_output_tokens}
+        if response_mime_type:
+            config_kwargs["response_mime_type"] = response_mime_type
+        config = types.GenerateContentConfig(**config_kwargs)
         response = None
         for attempt in range(MAX_TRANSIENT_RETRIES + 1):
             locally_limited_for = _acquire_request_slot()
@@ -215,14 +219,14 @@ def _generate(*, task_id: str, prompt: str, image: Optional[Union[Image.Image, b
                 completed.set()
 
 
-def generate_text(*, task_id: str, prompt: str, temperature: Optional[float] = None, max_output_tokens: Optional[int] = None, prompt_version: Optional[str] = None) -> Dict[str, Any]:
+def generate_text(*, task_id: str, prompt: str, temperature: Optional[float] = None, max_output_tokens: Optional[int] = None, prompt_version: Optional[str] = None, response_mime_type: Optional[str] = None) -> Dict[str, Any]:
     """Generate text for a named task through the shared Gemini client."""
-    return _generate(task_id=task_id, prompt=prompt, image=None, temperature=temperature, max_output_tokens=max_output_tokens, prompt_version=prompt_version)
+    return _generate(task_id=task_id, prompt=prompt, image=None, temperature=temperature, max_output_tokens=max_output_tokens, prompt_version=prompt_version, response_mime_type=response_mime_type)
 
 
-def generate_multimodal(*, task_id: str, image: Union[Image.Image, bytes, bytearray], prompt: str, temperature: Optional[float] = None, max_output_tokens: Optional[int] = None, prompt_version: Optional[str] = None) -> Dict[str, Any]:
+def generate_multimodal(*, task_id: str, image: Union[Image.Image, bytes, bytearray], prompt: str, temperature: Optional[float] = None, max_output_tokens: Optional[int] = None, prompt_version: Optional[str] = None, response_mime_type: Optional[str] = None) -> Dict[str, Any]:
     """Generate text from an image plus prompt through the shared Gemini client."""
-    return _generate(task_id=task_id, prompt=prompt, image=image, temperature=temperature, max_output_tokens=max_output_tokens, prompt_version=prompt_version)
+    return _generate(task_id=task_id, prompt=prompt, image=image, temperature=temperature, max_output_tokens=max_output_tokens, prompt_version=prompt_version, response_mime_type=response_mime_type)
 
 
 def clear_response_cache() -> None:
