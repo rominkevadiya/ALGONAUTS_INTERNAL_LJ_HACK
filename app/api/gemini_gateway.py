@@ -24,7 +24,7 @@ except ImportError:
     types = None  # type: ignore[assignment]
 
 
-GEMINI_MODEL = "gemini-2.5-flash"
+GEMINI_MODEL = "gemini-flash-latest"
 _LOGGER = logging.getLogger(__name__)
 _CLIENT: Any = None
 _CLIENT_LOCK = threading.Lock()
@@ -175,10 +175,12 @@ def _generate(*, task_id: str, prompt: str, image: Optional[Union[Image.Image, b
         config = types.GenerateContentConfig(**config_kwargs)
         response = None
         for attempt in range(MAX_TRANSIENT_RETRIES + 1):
-            locally_limited_for = _acquire_request_slot()
-            if locally_limited_for is not None:
-                _LOGGER.info("Gemini request deferred by the local rate limiter for task '%s'.", task_id)
-                return _result(False, error="local_rate_limited", cache_miss=True, retry_after_seconds=locally_limited_for)
+            while True:
+                locally_limited_for = _acquire_request_slot()
+                if locally_limited_for is None:
+                    break
+                _LOGGER.info("Gemini request deferred by the local rate limiter for task '%s'. Sleeping %.1fs.", task_id, locally_limited_for)
+                time.sleep(locally_limited_for)
             try:
                 response = client.models.generate_content(model=GEMINI_MODEL, contents=[image, prompt] if image is not None else prompt, config=config)
                 break
