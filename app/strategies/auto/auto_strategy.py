@@ -69,32 +69,13 @@ def predict_image_auto(
         from app.diagnostics.metadata_inspector import inspect_image_metadata
         meta_diagnostic = inspect_image_metadata(clean_img)
 
-    # Short-circuit if verified AI metadata or C2PA manifest is present
+    has_metadata_override = False
+    source_id = ""
+    # Detect if verified AI metadata or C2PA manifest is present, but don't return early
     if meta_diagnostic["provenance_verdict"] == "AI_GENERATED":
+        has_metadata_override = True
         source_id = meta_diagnostic.get("source_identified") or "AI Generator Provenance Tag"
-        capped_fake = METADATA_OVERRIDE_CONFIDENCE_CAP
-        res = {
-            "label": "FAKE",
-            "confidence": capped_fake,
-            "fake_probability": capped_fake,
-            "real_probability": round(1.00 - capped_fake, 4),
-            "inference_mode": "metadata_provenance",
-            "agreement": f"C2PA / AI Provenance Match ({source_id})",
-            "entropy": 0.0,
-            "normalized_entropy": 0.0,
-            "uncertainty_level": "High Confidence (Metadata Match)",
-            "uncertainty_note": f"Image contains AI-related metadata: {source_id}. This is a strong but spoofable/removable signal, "
-                                 f"so PyTorch model execution was short-circuited with a capped (not absolute) confidence.",
-            "fft_diagnostic": fft_diagnostic,
-            "metadata_diagnostic": meta_diagnostic,
-            "image_dimensions": f"{w} x {h}",
-            "confidence_info": {
-                "level": "High Confidence",
-                "color": "#ef4444",
-                "badge": "🤖 C2PA / AI PROVENANCE MATCH"
-            }
-        }
-        return validate_strategy_output(res, strategy_name="auto_metadata")
+        logger.info(f"C2PA / Metadata Match found: {source_id}. Will override final confidence after running PyTorch model.")
 
     logger.info(f"Executing Deep Learning Model in Mode: {selected_mode.upper()}")
     if selected_mode == "resize":
@@ -129,6 +110,14 @@ def predict_image_auto(
     result["fft_diagnostic"] = fft_diagnostic
     result["metadata_diagnostic"] = meta_diagnostic
     result["image_dimensions"] = f"{w} x {h}"
+    
+    if has_metadata_override:
+        result["label"] = "FAKE"
+        result["inference_mode"] = "metadata_provenance"
+        result["agreement"] = f"C2PA / AI Provenance Match ({source_id}) combined with {selected_mode.upper()}"
+        result["uncertainty_level"] = "High Confidence (Metadata Match)"
+        result["uncertainty_note"] = f"Image contains AI-related metadata: {source_id}. PyTorch model was run to extract features, but final verdict was overridden by C2PA metadata."
+        
     return validate_strategy_output(result, strategy_name="auto")
 
 

@@ -33,6 +33,7 @@ def generate_faithful_explanation(image: Image.Image, prediction_label: str, reg
 
     prompt = f"This image has been classified by an AI detection system as '{prediction_label}' (either REAL or FAKE AI-generated)."
     prompt += "\nYour task is to provide a very brief, faithful explanation for this verdict based on visual cues. Focus on lighting, physical inconsistencies, warped textures, or anatomical errors if it's FAKE, or natural physical consistency if REAL."
+    prompt += "\nCRITICAL: Do not fabricate visual cues you cannot clearly see. Only cite artifacts that are genuinely present in the image. If you are uncertain about a specific cue, do not include it. Your explanation must be grounded in the actual image."
     
     if diagnostic_context:
         prompt += "\n\nIncorporate the following algorithmic diagnostics into your explanation to prove it is mathematically grounded:"

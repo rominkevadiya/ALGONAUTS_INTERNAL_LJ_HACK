@@ -112,11 +112,11 @@ def run_grad_cam(model, image: Image.Image, target_class: int = 0) -> Image.Imag
     from torchvision import transforms
     from app.config import IMAGENET_MEAN, IMAGENET_STD
     
-    # Target the last bottleneck layer of ResNet-50
-    # The actual attribute name depends on the model architecture, for standard ResNet it's layer4[-1]
+    # Target the layer3 bottleneck layer of ResNet-50 for slightly better spatial resolution
+    # The actual attribute name depends on the model architecture, for standard ResNet it's layer3[-1]
     target_layer = None
-    if hasattr(model, 'layer4'):
-        target_layer = model.layer4[-1]
+    if hasattr(model, 'layer3'):
+        target_layer = model.layer3[-1]
     else:
         # Fallback if it's wrapped
         target_layer = list(model.modules())[-2]
@@ -124,7 +124,7 @@ def run_grad_cam(model, image: Image.Image, target_class: int = 0) -> Image.Imag
     grad_cam = GradCAM(model, target_layer)
     
     transform = transforms.Compose([
-        transforms.Resize((256, 256)), # standard size for visualization
+        transforms.Resize((32, 32)), # Must match model's training size (CIFAKE is 32x32)
         transforms.ToTensor(),
         transforms.Normalize(IMAGENET_MEAN, IMAGENET_STD)
     ])

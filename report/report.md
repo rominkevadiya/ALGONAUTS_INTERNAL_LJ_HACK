@@ -16,7 +16,7 @@
 
 ### 2. Data & split
 - **Core Training Data:** CIFAKE Dataset (MIT Licensed, ~100k+ labelled $32 \times 32$ images, balanced real/fake).
-- **Split:** 80% Train, 10% Validation, 10% Test (Original CIFAKE standard split). No additional public data was mixed during training.
+- **Split:** 80k Train, 20k Validation, 20k Test (Original CIFAKE standard split). No additional public data was mixed during training.
 - **Evaluation:** Evaluated on both the standard CIFAKE test set and a synthetic mock dataset for "unseen generator" (Midjourney-style patterns).
 
 ### 3. Model / approach

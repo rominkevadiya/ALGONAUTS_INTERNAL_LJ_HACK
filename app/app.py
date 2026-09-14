@@ -365,7 +365,7 @@ def main():
                 """, unsafe_allow_html=True)
 
                 if active_mode == "metadata_provenance":
-                    st.info(f"⚡ **Short-Circuit Notice:** Verified AI digital metadata detected (`{res['agreement']}`). Deep learning neural network forward pass bypassed.")
+                    st.info(f"⚡ **Metadata Override Notice:** Verified AI digital metadata detected (`{res['agreement']}`). Deep learning model was executed for analysis, but the final verdict is locked by cryptographic provenance.")
 
                 st.markdown("<br>", unsafe_allow_html=True)
                 st.subheader("📈 Classification Probabilities")
@@ -560,22 +560,7 @@ def main():
                             st.write("📋 **Highlighted Region Data:**")
                             st.dataframe(pd.DataFrame(regions), width="stretch")
                             
-                            st.markdown("---")
-                            st.caption("🔥 **ResNet-50 Grad-CAM Heatmap:** Visualizes network activation hotspots for the FAKE class.")
-                            from app.diagnostics.grad_cam import run_grad_cam
-                            with st.spinner("Generating Grad-CAM..."):
-                                try:
-                                    cam_image = run_grad_cam(model, image, target_class=0)
-                                except Exception as e:
-                                    st.error(f"Grad-CAM generation failed: {e}")
-                                    cam_image = None
-                            
-                            col_b1, col_b2 = st.columns(2)
-                            with col_b1:
-                                st.image(boxed_image, caption="Bounding Box Localization", use_container_width=True)
-                            with col_b2:
-                                if cam_image:
-                                    st.image(cam_image, caption="Grad-CAM Activation", use_container_width=True)
+                            st.image(boxed_image, caption="Bounding Box Localization", width="stretch")
                         else:
                             st.success("✅ No localized suspicious AI patch regions detected above 50% fake threshold.")
 
@@ -596,6 +581,19 @@ def main():
                         
                         st.markdown(f"**Explanation:**\n> {explanation_data.get('explanation')}")
                         
+                        st.markdown("---")
+                        st.caption("🔥 **ResNet-50 Grad-CAM Heatmap:** Visualizes network activation hotspots for the FAKE class.")
+                        from app.diagnostics.grad_cam import run_grad_cam
+                        with st.spinner("Generating Grad-CAM..."):
+                            try:
+                                cam_image = run_grad_cam(model, image, target_class=0)
+                            except Exception as e:
+                                st.error(f"Grad-CAM generation failed: {e}")
+                                cam_image = None
+                        
+                        if cam_image:
+                            st.image(cam_image, caption="Grad-CAM Activation (Note: Heatmap resolution is coarse due to 32x32 ResNet stem input)", width="stretch")
+                            
                         if caption_input:
                             st.markdown("---")
                             st.write("📝 **Multimodal Image-Text Consistency**")
@@ -751,6 +749,13 @@ def main():
                 pr_img = outputs_dir / "precision_recall_curve.png"
                 if pr_img.exists():
                     st.image(str(pr_img), caption="Precision-Recall Curve")
+            
+            st.markdown("---")
+            st.subheader("🛡️ Active Defence & Robustness Analysis")
+            eval_dir = Path(__file__).resolve().parent.parent / "evaluation"
+            deg_img = eval_dir / "degradation_vs_accuracy.png"
+            if deg_img.exists():
+                st.image(str(deg_img), caption="Accuracy under JPEG Compression & Resizing (Active Defence)", width="stretch")
 
     # Global Footer Disclaimer
     st.markdown("---")
