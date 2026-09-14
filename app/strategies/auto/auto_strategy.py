@@ -113,6 +113,7 @@ def predict_image_auto(
     
     if has_metadata_override:
         result["label"] = "FAKE"
+        result["confidence"] = METADATA_OVERRIDE_CONFIDENCE_CAP
         result["inference_mode"] = "metadata_provenance"
         result["agreement"] = f"C2PA / AI Provenance Match ({source_id}) combined with {selected_mode.upper()}"
         result["uncertainty_level"] = "High Confidence (Metadata Match)"
