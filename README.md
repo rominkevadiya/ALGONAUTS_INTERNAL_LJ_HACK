@@ -151,7 +151,7 @@ The key is loaded only by `app/api/gemini_gateway.py`; do not hardcode it or cre
 Gemini is optional. The local ResNet-50 detector remains the primary real-vs-AI decision path and continues to run without an API key, the Gemini SDK, or Gemini availability. Modules A, B, and E route through the shared gateway:
 
 ```text
-Module A / Module B / Module E → Gemini gateway → Gemini (`gemini-3.6-flash`)
+Module A / Module B / Module E → Gemini gateway → Gemini (`gemini-2.5-flash`)
 ```
 
 The gateway uses versioned prompts, compact JSON contracts, an in-memory content-hash cache, duplicate in-flight request coalescing, and a conservative local rate limiter (12 live requests per rolling minute, with one-second request spacing). It makes at most one bounded retry for transient errors. These controls reduce accidental duplicate requests; they do not increase the Google API quota. If Gemini is unavailable or rate-limited, only the affected bonus result is unavailable—the local detector and Streamlit interface continue to work.
