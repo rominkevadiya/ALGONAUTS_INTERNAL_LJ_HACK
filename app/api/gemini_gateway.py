@@ -38,9 +38,9 @@ _REQUEST_TIMESTAMPS = deque()
 # quota assigned to the Gemini project. Cached requests do not consume slots.
 MAX_REQUESTS_PER_MINUTE = 12
 MIN_REQUEST_INTERVAL_SECONDS = 1.0
-MAX_TRANSIENT_RETRIES = 1
-TRANSIENT_BACKOFF_SECONDS = 0.5
-MAX_RETRY_DELAY_SECONDS = 2.0
+MAX_TRANSIENT_RETRIES = 3
+TRANSIENT_BACKOFF_SECONDS = 1.0
+MAX_RETRY_DELAY_SECONDS = 4.0
 
 
 def _result(success: bool, text: str = "", error: Optional[str] = None, *, cache_hit: bool = False, cache_miss: bool = False, retry_after_seconds: Optional[float] = None) -> Dict[str, Any]:
