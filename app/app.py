@@ -358,18 +358,23 @@ def main():
                     ]
 
                 _gemini_executor = ThreadPoolExecutor(max_workers=2)
+                
+                # Resize image specifically for Gemini to drastically speed up network upload & processing
+                _gemini_img = image.copy()
+                _gemini_img.thumbnail((512, 512))
+
                 _future_attribution = None
                 if label == "FAKE" or fake_prob > 0.5:
                     try:
                         from model.generator_attribution import predict_generator_attribution
-                        _future_attribution = _gemini_executor.submit(predict_generator_attribution, image)
+                        _future_attribution = _gemini_executor.submit(predict_generator_attribution, _gemini_img)
                     except ImportError:
                         pass
                 
                 from app.diagnostics.explainer import generate_faithful_explanation
                 _future_explanation = _gemini_executor.submit(
                     generate_faithful_explanation,
-                    image=image,
+                    image=_gemini_img,
                     prediction_label=label,
                     regions=_regions,
                     caption=caption_input if caption_input else None,
@@ -420,7 +425,7 @@ def main():
                     with st.spinner("Analyzing artifacts to determine generator family..."):
                         if _future_attribution is not None:
                             try:
-                                attribution = _future_attribution.result()
+                                attribution = _future_attribution.result(timeout=45)
                                 
                                 a_col1, a_col2 = st.columns(2)
                                 with a_col1:
@@ -607,9 +612,9 @@ def main():
                         from app.diagnostics.explainer import generate_faithful_explanation
                         with st.spinner("Analyzing visual cues and multimodal consistency..."):
                             try:
-                                explanation_data = _future_explanation.result()
+                                explanation_data = _future_explanation.result(timeout=45)
                             except Exception as e:
-                                explanation_data = {"explanation": "Gemini explainer encountered an error.", "consistency_score": None, "consistency_note": "N/A"}
+                                explanation_data = {"explanation": "Gemini explainer encountered an error or timed out.", "consistency_score": None, "consistency_note": "N/A"}
                         
                         st.markdown(f"**Explanation:**\n> {explanation_data.get('explanation')}")
                         
