@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 from typing import Any, Dict
 
 from PIL import Image
@@ -18,10 +19,14 @@ def assess_image_caption_consistency(image: Image.Image, caption: str) -> Dict[s
     if not response["success"]:
         return {"consistent": False, "confidence": 0.0, "note": "Image-caption consistency is unavailable right now."}
     try:
-        data = json.loads(response["text"])
-        consistent, confidence, note = data.get("consistent"), float(data.get("confidence")), data.get("note")
-        if not isinstance(consistent, bool) or not isinstance(note, str):
-            raise ValueError("invalid response schema")
+        raw_text = response["text"].strip()
+        if raw_text.startswith("```"):
+            raw_text = re.sub(r"^```(?:json)?\s*", "", raw_text, flags=re.IGNORECASE)
+            raw_text = re.sub(r"\s*```$", "", raw_text).strip()
+        data = json.loads(raw_text)
+        consistent = bool(data.get("consistent", False))
+        confidence = float(data.get("confidence", 0.0))
+        note = str(data.get("note", "N/A"))
         return {"consistent": consistent, "confidence": min(1.0, max(0.0, confidence)), "note": note[:300]}
-    except (TypeError, ValueError, json.JSONDecodeError):
+    except Exception:
         return {"consistent": False, "confidence": 0.0, "note": "Image-caption consistency response could not be validated."}

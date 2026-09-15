@@ -1,4 +1,5 @@
 import json
+import re
 from typing import Any, Dict
 import warnings
 
@@ -26,11 +27,28 @@ def generate_faithful_explanation(image: Image.Image, prediction_label: str, reg
         explanation = "⏳ Gemini API Free Tier rate limit reached (15 requests/minute). Please wait 30 seconds and try again!" if response["error"] in {"rate_limited", "local_rate_limited"} else "Failed to generate explanation via Gemini API."
         return {"explanation": explanation, "consistency_score": None, "consistency_note": "N/A"}
     try:
-        data = json.loads(response["text"])
-        explanation, score, note = data.get("explanation"), data.get("consistency_score"), data.get("consistency_note", "N/A")
-        if not isinstance(explanation, str) or not isinstance(note, str):
+        raw_text = response["text"].strip()
+        if raw_text.startswith("```"):
+            raw_text = re.sub(r"^```(?:json)?\s*", "", raw_text, flags=re.IGNORECASE)
+            raw_text = re.sub(r"\s*```$", "", raw_text).strip()
+        data = json.loads(raw_text)
+        explanation = data.get("explanation")
+        note = data.get("consistency_note", "N/A")
+        if not isinstance(explanation, str):
             raise ValueError("invalid response schema")
-        consistency_score = None if score is None else min(1.0, max(0.0, float(score)))
+        note = str(note) if note is not None else "N/A"
+        raw_score = data.get("consistency_score")
+        consistency_score = None
+        if raw_score is not None:
+            try:
+                val = float(raw_score)
+                if val > 1.0 and val <= 10.0:
+                    val = val / 10.0
+                elif val > 10.0:
+                    val = val / 100.0
+                consistency_score = min(1.0, max(0.0, val))
+            except (ValueError, TypeError):
+                consistency_score = None
         return {"explanation": explanation[:600], "consistency_score": consistency_score, "consistency_note": note[:300]}
-    except (TypeError, ValueError, json.JSONDecodeError):
+    except Exception:
         return {"explanation": "Gemini explanation response could not be validated.", "consistency_score": None, "consistency_note": "N/A"}

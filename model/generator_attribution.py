@@ -1,4 +1,5 @@
 import json
+import re
 from typing import Any, Dict
 import warnings
 
@@ -29,11 +30,18 @@ def predict_generator_attribution(image: Image.Image) -> Dict[str, Any]:
         note = "⏳ Gemini API Free Tier rate limit reached. Please wait 30 seconds." if response["error"] in {"rate_limited", "local_rate_limited"} else "Gemini attribution is unavailable right now."
         return {"family": "Error", "specific_model": "Error", "confidence": 0.0, "note": note}
     try:
-        data = json.loads(response["text"])
+        raw_text = response["text"].strip()
+        if raw_text.startswith("```"):
+            raw_text = re.sub(r"^```(?:json)?\s*", "", raw_text, flags=re.IGNORECASE)
+            raw_text = re.sub(r"\s*```$", "", raw_text).strip()
+        data = json.loads(raw_text)
         family, specific_model = data.get("family"), data.get("specific_model")
-        confidence, note = float(data.get("confidence")), data.get("note")
-        if family not in _FAMILIES or specific_model not in _MODELS or not isinstance(note, str):
-            raise ValueError("invalid response schema")
+        confidence, note = float(data.get("confidence", 0.0)), data.get("note", "")
+        if family not in _FAMILIES:
+            family = "Unknown"
+        if specific_model not in _MODELS:
+            specific_model = "Unknown"
+        note = str(note) if note is not None else ""
         return {"family": family, "specific_model": specific_model, "confidence": min(1.0, max(0.0, confidence)), "note": note[:300]}
-    except (TypeError, ValueError, json.JSONDecodeError):
+    except Exception:
         return {"family": "Unknown", "specific_model": "Unknown", "confidence": 0.0, "note": "Gemini attribution response could not be validated."}

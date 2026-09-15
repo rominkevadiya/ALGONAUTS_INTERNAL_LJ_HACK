@@ -24,7 +24,7 @@ except ImportError:
     types = None  # type: ignore[assignment]
 
 
-GEMINI_MODEL = "gemini-flash-latest"
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-flash-latest")
 _LOGGER = logging.getLogger(__name__)
 _CLIENT: Any = None
 _CLIENT_LOCK = threading.Lock()
@@ -169,11 +169,17 @@ def _generate(*, task_id: str, prompt: str, image: Optional[Union[Image.Image, b
         client = _get_client()
         if client is None:
             return _result(False, error="missing_api_key", cache_miss=True)
-        config_kwargs: Dict[str, Any] = {"temperature": temperature, "max_output_tokens": max_output_tokens}
-        if response_mime_type:
-            config_kwargs["response_mime_type"] = response_mime_type
+        # Ensure adequate token budget and disable thinking overhead for fast (<4s) UI responses
+        token_limit = max(max_output_tokens or 800, 800)
+        config_kwargs: Dict[str, Any] = {"temperature": temperature, "max_output_tokens": token_limit}
+        if hasattr(types, "ThinkingConfig"):
+            try:
+                config_kwargs["thinking_config"] = types.ThinkingConfig(thinking_budget=0)
+            except Exception:
+                pass
         config = types.GenerateContentConfig(**config_kwargs)
         response = None
+        target_model = GEMINI_MODEL
         for attempt in range(MAX_TRANSIENT_RETRIES + 1):
             while True:
                 locally_limited_for = _acquire_request_slot()
@@ -182,9 +188,13 @@ def _generate(*, task_id: str, prompt: str, image: Optional[Union[Image.Image, b
                 _LOGGER.info("Gemini request deferred by the local rate limiter for task '%s'. Sleeping %.1fs.", task_id, locally_limited_for)
                 time.sleep(locally_limited_for)
             try:
-                response = client.models.generate_content(model=GEMINI_MODEL, contents=[image, prompt] if image is not None else prompt, config=config)
+                response = client.models.generate_content(model=target_model, contents=[image, prompt] if image is not None else prompt, config=config)
                 break
             except Exception as exc:
+                if "404" in str(exc) and target_model != "gemini-flash-latest":
+                    _LOGGER.info("Model '%s' not available (%s), falling back to 'gemini-flash-latest'.", target_model, exc)
+                    target_model = "gemini-flash-latest"
+                    continue
                 error = _error_code(exc)
                 retry_after = _retry_after_seconds(exc)
                 # A 429 can be retried only when the server asks for a short wait;
@@ -207,6 +217,9 @@ def _generate(*, task_id: str, prompt: str, image: Optional[Union[Image.Image, b
             _LOGGER.warning("Gemini returned an empty or malformed response for task '%s'.", task_id)
             return _result(False, error="malformed_response", cache_miss=True)
         clean_text = text.strip()
+        if clean_text.startswith("```"):
+            clean_text = re.sub(r"^```(?:json)?\s*", "", clean_text, flags=re.IGNORECASE)
+            clean_text = re.sub(r"\s*```$", "", clean_text).strip()
         with _CACHE_LOCK:
             _CACHE[key] = clean_text
         return _result(True, clean_text, cache_miss=True)
