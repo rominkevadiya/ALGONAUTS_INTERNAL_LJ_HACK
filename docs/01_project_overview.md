@@ -43,12 +43,12 @@ Key objectives:
 
 ## 5. Core Features & Hackathon Modules
 - **Core Multi-Strategy Inference**: Six robust strategies including Baseline Resize, Variance-Guided Native Patch Voting (with config-unified Top-K ratio), 3-Branch MultiScale Analysis, 8-View Test-Time Augmentation (TTA), Hybrid Consensus (calibrated decision tree), and an intelligent Resolution-Aware Auto-Dispatcher.
-- **Bonus A (Faithful Explanation)**: Grad-CAM heat-maps layered with Gemini-generated natural language cues. Passes FFT, entropy, patch agreement, branch disagreement and strategy mode as structured diagnostic context.
+- **Bonus A (Faithful Explanation)**: Gemini-generated natural language explanations. Passes FFT, entropy, patch agreement, branch disagreement and strategy mode as structured diagnostic context.
 - **Bonus B (Generator Attribution)**: Offline attribution of specific AI generators via `c2pa-python` byte-decoding. Expanded generator list covers Flux.1, Adobe Firefly, Imagen 3, Sora, Kling, Runway, Pika, Ideogram, Canva AI and more. Falls back to Gemini multimodal analysis with neutral framing.
 - **Bonus C (Robustness)**: High resilience to degradation (compression/resize) via `PATCH_N=32` stable sampling.
 - **Bonus D (Provenance)**: EXIF and C2PA binary signature extraction (44 known AI signatures). CAMERA_REAL is informational only — does not bypass the PyTorch model verdict.
 - **Bonus E (Multimodal)**: Image-caption consistency validation JSON scoring.
-- **Bonus F (Deployable UI)**: Real-time interactive Streamlit web dashboard with live diagnostics, bounding box annotation, and Responsible AI framing.
+- **Bonus F (Deployable UI)**: Real-time interactive Streamlit web dashboard with live diagnostics and Responsible AI framing.
 - **Bonus G (Active Defence)**: FGSM adversarial attack robustness analysis documented separately.
 - **Pretrained Checkpoint**: Loads pre-trained weights (`model/best_resnet50_cifake_retrained.pth`) without retraining during application execution.
 

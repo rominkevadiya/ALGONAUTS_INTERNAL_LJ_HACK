@@ -14,13 +14,11 @@ SignalScope is organized into decoupled Python modules:
   - `entropy.py` — Shannon entropy + confidence label bands
   - `disagreement.py` — patch-level statistical disagreement metrics
   - `fft_spectral.py` — 2D FFT radial spectral anomaly scoring (used exclusively by hybrid strategy)
-  - `grad_cam.py` — Gradient-weighted Class Activation Mapping heatmap generation
-  - `bounding_box.py` — Suspect region RGBA overlay renderer
   - `explainer.py` — Gemini faithful explanation caller (Module A)
   - `metadata_inspector.py` — C2PA/EXIF/PNG AI provenance inspector with 44 known AI signatures (Module D)
   - `multimodal_consistency.py` — Image-caption consistency scorer (Module E)
 - **`model/`**: Contains the frozen weights (`best_resnet50_cifake_retrained.pth`) and `generator_attribution.py` (Module B Gemini fallback — uses `app.api` imports).
-- **`app/app.py`**: Streamlit web dashboard managing UI rendering, single/batch upload tabs, `st.session_state` inference/API caching, on-demand retry buttons, live diagnostic logits expanders, bounding box visualizations, and CSV downloads.
+- **`app/app.py`**: Streamlit web dashboard managing UI rendering, single/batch upload tabs, `st.session_state` inference/API caching, on-demand retry buttons, live diagnostic logits expanders, and CSV downloads.
 
 ---
 
@@ -59,7 +57,7 @@ graph TD
     Strategy --> Hybrid["Hybrid Strategy + FFT"]
     Strategy --> Multiscale["MultiScale Strategy (3-branch)"]
     Strategy --> TTA["TTA Strategy (8-view)"]
-    Resize & Patch & Hybrid & Multiscale & TTA --> Diag["Diagnostics (Entropy, Disagreement, Grad-CAM, BBox)"]
+    Resize & Patch & Hybrid & Multiscale & TTA --> Diag["Diagnostics (Entropy, Disagreement)"]
     Diag --> Gemini["Gemini Gateway (A/B/E)"]
     Gemini --> Output["UI Display (Result + Diagnostics)"]
 ```

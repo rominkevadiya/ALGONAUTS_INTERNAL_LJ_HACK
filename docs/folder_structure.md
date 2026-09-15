@@ -48,9 +48,7 @@ ALGONAUTS_INTERNAL_LJ_HACK-main/
 │   │   ├── entropy.py                      # Shannon entropy (H/ln2) + confidence label bands
 │   │   ├── disagreement.py                 # Patch-level statistical disagreement metrics
 │   │   ├── fft_spectral.py                 # 2D FFT radial spectral scoring (hybrid strategy only)
-│   │   ├── grad_cam.py                     # Gradient-weighted Class Activation Mapping
-│   │   ├── bounding_box.py                 # Top-N suspect region RGBA overlay renderer
-│   │   ├── explainer.py                    # Bonus A — Gemini faithful explanation caller
+│   │   ├── explainer.py                    # Bonus A — Gemini explanation caller
 │   │   ├── metadata_inspector.py           # Bonus D — C2PA/EXIF/PNG AI provenance inspector
 │   │   │                                   # 44 known AI signatures; CAMERA_REAL is informational only
 │   │   └── multimodal_consistency.py       # Bonus E — image-caption consistency scorer
@@ -116,7 +114,7 @@ ALGONAUTS_INTERNAL_LJ_HACK-main/
 
 - **`app.predictor`** acts as a unified re-export facade for the Streamlit app. The web UI does not need to know which strategy is executing.
 - **`app/strategies/`** encapsulates the exact logic for predicting the label. All strategies are stateless — no mutable state between calls.
-- **`app/diagnostics/`** provides mathematical tools (entropy, FFT, Grad-CAM) that strategies and the UI call independently.
+- **`app/diagnostics/`** provides mathematical tools (entropy, FFT) that strategies and the UI call independently.
 - **`app/api/`** is the single integration point for all Gemini calls. No other module should instantiate Gemini clients directly.
 - **Strategy routing** (auto mode) uses minimum image dimension as the sole routing criterion. FFT computation is deferred until hybrid is selected to avoid wasted compute.
 - **Checkpoint security**: `weights_only=True` with numpy dtype allowlist. The checkpoint is from the project's own trusted training pipeline — adding numpy types to the allowlist is safe and does not compromise security.

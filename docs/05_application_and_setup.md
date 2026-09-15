@@ -110,8 +110,6 @@ pytest tests/test_predictor.py -v
 - **`entropy.py`**: Shannon entropy ($H/\ln2$) + confidence label bands.
 - **`disagreement.py`**: Patch-level statistical disagreement metrics (mean, std, range, agreement %).
 - **`fft_spectral.py`**: 2D FFT radial power spectrum scoring. Used exclusively by hybrid strategy.
-- **`grad_cam.py`**: Gradient-weighted Class Activation Mapping heatmap overlay.
-- **`bounding_box.py`**: Top-N suspect region RGBA overlay renderer.
 - **`explainer.py`**: Gemini faithful explanation caller with structured diagnostic context (Module A).
 - **`metadata_inspector.py`**: C2PA/EXIF/PNG AI provenance inspector with 44 known AI signatures. CAMERA_REAL is informational only — does not bypass model (Module D).
 - **`multimodal_consistency.py`**: Image-caption consistency JSON scorer (Module E).
@@ -124,4 +122,4 @@ Gemini multimodal classifier for generator family attribution. Uses `app.api` im
 - **`prompt_registry.py`**: Versioned prompt contracts. Generator attribution uses neutral framing with 30+ generator families. Faithful explanation uses 300-token budget. Multimodal consistency scoped to visible evidence only.
 
 ### `app/app.py`
-Streamlit application entry point implementing header, tabs, single-image preview, prediction visual boxes, live diagnostic logits expander, bounding box visualization, batch upload, and CSV downloads. Integrated with `st.session_state` smart caching and retry controls.
+Streamlit application entry point implementing header, tabs, single-image preview, live diagnostic logits expander, batch upload, and CSV downloads. Integrated with `st.session_state` smart caching and retry controls.

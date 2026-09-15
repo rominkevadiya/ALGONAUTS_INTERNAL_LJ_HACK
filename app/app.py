@@ -474,9 +474,8 @@ def main():
                 # Diagnostics Expander
                 # --------------------------------------------------
                 with st.expander("🔬 Comprehensive Diagnostics & Stability Analysis", expanded=True):
-                    d_tab_verdict, d_tab_visual, d_tab_robust, d_tab_expert = st.tabs([
+                    d_tab_verdict, d_tab_robust, d_tab_expert = st.tabs([
                         "💡 Plain-English Verdict", 
-                        "📸 Visual Evidence", 
                         "🛡️ Live Robustness Check",
                         "🔬 Deep Diagnostics (For Experts)"
                     ])
@@ -609,31 +608,6 @@ def main():
                         else:
                             st.info("No EXIF or PNG metadata headers detected in file (metadata unpopulated or stripped).")
 
-                    # Sub-Tab 6: High-Scoring Inference Regions (Bounding Box Overlay)
-                    with d_tab_visual:
-                        st.caption("🎯 **Model Inference Highlights:** Draws bounding boxes around patches with high AI-fake scores.")
-                        analysis_data = res.get("analysis", {})
-                        regions = analysis_data.get("highlighted_regions", [])
-
-                        if not regions and "patch_prediction" in res:
-                            patch_p = res["patch_prediction"]
-                            coords_list = patch_p.get("patch_coordinates", [])
-                            probs_list = patch_p.get("patch_fake_probs", [])
-                            regions = [
-                                {"x": c[0], "y": c[1], "width": c[2]-c[0], "height": c[3]-c[1], "fake_probability": p, "source": "patch_vote"}
-                                for c, p in zip(coords_list, probs_list) if p >= 0.608
-                            ]
-
-                        if regions:
-                            from app.diagnostics.bounding_box import render_highlighted_regions
-                            boxed_image = render_highlighted_regions(image, regions)
-                            
-                            st.write("📋 **Highlighted Region Data:**")
-                            st.dataframe(pd.DataFrame(regions), width="stretch")
-                            
-                            st.image(boxed_image, caption="Bounding Box Localization", width="stretch")
-                        else:
-                            st.success("✅ No localized suspicious AI patch regions detected above the 60.8% model fake threshold.")
 
                     # Sub-Tab 7: Faithful Explanation (Gemini API)
                     with d_tab_verdict:
@@ -655,19 +629,7 @@ def main():
                                     st.session_state["cached_explanation"] = explanation_data
                                     st.rerun()
                         
-                        st.markdown("---")
-                        st.caption("🔥 **ResNet-50 Grad-CAM Heatmap:** Visualizes network activation hotspots for the FAKE class.")
-                        from app.diagnostics.grad_cam import run_grad_cam
-                        with st.spinner("Generating Grad-CAM..."):
-                            try:
-                                cam_image = run_grad_cam(model, image, target_class=0)
-                            except Exception as e:
-                                st.error(f"Grad-CAM generation failed: {e}")
-                                cam_image = None
-                        
-                        if cam_image:
-                            st.image(cam_image, caption="Grad-CAM Activation (Note: Heatmap resolution is coarse due to 32x32 ResNet stem input)", width="stretch")
-                            
+
                         if caption_input:
                             st.markdown("---")
                             st.write("📝 **Multimodal Image-Text Consistency**")

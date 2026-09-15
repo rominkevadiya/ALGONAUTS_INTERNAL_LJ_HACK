@@ -12,7 +12,7 @@ SignalScope is a local inference application designed to screen images and class
 - Streamlit inference interface.
 
 **Bonus Modules (Completed):**
-- **A. Faithful Explanation:** Natural language explanations of visual cues via Gemini integration, paired with visual heat-maps (Grad-CAM).
+- **A. Faithful Explanation:** Natural language explanations of visual cues via Gemini integration.
 - **B. Generator Attribution:** Multi-class attribution (e.g., Adobe Firefly, Midjourney, Flux.1, Sora, Kling, Runway, Pika, SDXL, DALL-E 3) implemented via **`c2pa-python`** to decrypt and extract cryptographic Content Credentials (`softwareAgent`), falling back to EXIF signatures and Gemini multimodal analysis if absent.
 - **C. Robustness to Degradation:** High resilience against JPEG compression and resizing through a **native 32×32 patch consensus** inference pipeline instead of global image downsampling.
 - **D. Provenance & Metadata:** Extensive pre-screening for C2PA byte signatures (`jumbc2pa`), EXIF AI-tool tags (44 known signatures), and camera hardware tags.
@@ -36,7 +36,7 @@ SignalScope is a local inference application designed to screen images and class
   - `≥ 512px` → MultiScale (large/high-res; best for modern AI output)
 - **Normalized Shannon Entropy Diagnostics:** Computes output uncertainty H(p)/ln(2) to identify predictions near the decision boundary.
 - **Experimental 2D FFT Spectral Diagnostic:** Analyzes radial power spectrum and frequency irregularities. Wired into the Hybrid strategy to confirm localized AI artifacts.
-- **Bounding Box Region Annotation:** Highlights the highest-scoring suspect regions on the original image.
+
 
 ---
 
@@ -128,8 +128,6 @@ ALGONAUTS_INTERNAL_LJ_HACK-main/
 │   │   ├── entropy.py                      # Shannon entropy + confidence labels
 │   │   ├── disagreement.py                 # Patch-level statistical disagreement
 │   │   ├── fft_spectral.py                 # 2D FFT spectral anomaly scoring
-│   │   ├── grad_cam.py                     # Gradient-weighted Class Activation Mapping
-│   │   ├── bounding_box.py                 # Suspect region annotation renderer
 │   │   ├── explainer.py                    # Bonus A — Gemini explanation caller
 │   │   ├── metadata_inspector.py           # Bonus D — C2PA/EXIF/AI metadata inspector
 │   │   └── multimodal_consistency.py       # Bonus E — image-caption consistency

@@ -6,7 +6,7 @@
 ### 1. Task
 - **Core:** Binary real-vs-AI-generated image classification.
 - **Bonus Modules Attempted:** 
-  - A (Faithful Explanation): Textual explanations of visual cues via Gemini API (`gemini-3.1-flash-lite` with multi-model failover) paired with Grad-CAM heat-maps.
+  - A (Faithful Explanation): Textual explanations of visual cues via Gemini API (`gemini-3.1-flash-lite` with multi-model failover).
   - B (Generator Attribution): Precise model extraction (e.g., Adobe Firefly) via `c2pa-python` binary manifest decoding, plus multi-class attribution via Gemini API.
   - C (Robustness to Degradation): High resilience to resizing and compression through `PATCH_N=32` stable patch consensus rather than global downscaling.
   - D (Provenance & Metadata): Native byte scanning for C2PA `jumbc2pa` manifests, EXIF hardware tags, and Messenger artifacts.
