@@ -12,13 +12,13 @@ SignalScope is a local inference application designed to screen images and class
 - Streamlit inference interface.
 
 **Bonus Modules (Completed):**
-- **A. Faithful Explanation:** Natural language explanations of visual cues via the optional Gemini integration.
-- **B. Generator Attribution:** Multi-class generator family identification (Diffusion/GAN) via Gemini API.
-- **C. Robustness to Degradation:** Empirical testing against JPEG compression and resizing.
-- **D. Provenance & Metadata:** Exif and C2PA pre-screening with pipeline short-circuiting for verified AI images.
-- **E. Multimodal (Image + Text):** Consistency checking between provided captions and image content.
-- **F. Real-Time / Deployable:** Full Streamlit interactive interface with backend Live Terminal Logging.
-- **G. Active Defence Analysis:** Adversarial FGSM attack robustness analysis.
+- **A. Faithful Explanation:** Natural language explanations of visual cues via Gemini integration, paired with visual heat-maps (Grad-CAM).
+- **B. Generator Attribution:** Multi-class attribution (e.g., Adobe Firefly, Midjourney) implemented securely via **`c2pa-python`** to decrypt and extract cryptographic Content Credentials (`softwareAgent`), falling back to EXIF and Gemini if missing.
+- **C. Robustness to Degradation:** High resilience against JPEG compression and resizing through a **native $32 \times 32$ patch consensus** inference pipeline instead of global image downsampling.
+- **D. Provenance & Metadata:** Extensive pre-screening for C2PA byte signatures (`jumbc2pa`), EXIF camera hardware tags, and Social Messenger compression tags.
+- **E. Multimodal (Image + Text):** Rigorous image-caption consistency checking and JSON scoring via the Gemini 2.5 API.
+- **F. Real-Time / Deployable:** Full Streamlit interactive interface presenting responsible "Provenance Verdicts" and live backend Terminal Logging.
+- **G. Active Defence Analysis:** Adversarial FGSM attack robustness analysis documented in `AUDIT_REPORT.md`.
 
 ---
 
@@ -167,6 +167,8 @@ Module A / Module B / Module E → Central Gemini Gateway → Google GenAI API
 5. **Streamlit `st.session_state` Smart Caching**: In `app/app.py`, both deep learning predictions and Gemini responses are cached per image in session state. Switching between diagnostic tabs, sliders, or robustness tests uses **0 additional API requests** and renders instantly with 0ms latency.
 6. **On-Demand Retry Controls**: Includes dedicated "🔄 Retry" buttons in the UI for both Generator Attribution and Faithful Explanation in case a transient rate limit is encountered.
 7. **Rate Limiting & Bounded Retries**: Regulates live traffic with rolling window tracking (12 requests/minute, 1s spacing) and performs bounded exponential backoff for transient 429 burst errors.
+
+*Note that **Generator Attribution (Module B)** operates entirely locally without the Gemini API when cryptographic C2PA manifests are present, ensuring lightning-fast and offline attribution.*
 
 ### 3. Run the Streamlit Application
 

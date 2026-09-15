@@ -10,8 +10,8 @@ SignalScope is organized into decoupled Python modules:
 - **`app/strategies/`**: Contains modular inference strategies (Auto-Dispatcher, Baseline Resize, Native Patch Voting, Hybrid Consensus, 8-View TTA).
 - **`app/api/gemini_gateway.py`**: Centralized, resilient gateway for Google GenAI SDK calls. Implements default `gemini-3.1-flash-lite` model, automated multi-model failover (`gemini-3.1-flash-lite` $\rightarrow$ `gemini-3.5-flash` $\rightarrow$ `gemini-3.5-flash-lite`), zero-thinking latency optimization (`thinking_budget=0`), thread-safe in-memory response caching, rate limiting (12 req/min), bounded 429 retries, and regex markdown fence stripping.
 - **`app/api/prompt_registry.py`**: Versioned prompt definitions for Generator Attribution (Module B), Faithful Explanation (Module A), and Multimodal Consistency (Module E).
-- **`app/diagnostics/`**: Contains analytics modules (Shannon Entropy, Statistical Disagreement, 2D FFT Spectral scoring). Also contains **`explainer.py`** (Gemini explanation), **`metadata_inspector.py`** (C2PA/EXIF screening), and **`grad_cam.py`** (Heatmap generation).
-- **`model/`**: Contains the frozen weights (`best_resnet50_cifake_retrained.pth`) and **`generator_attribution.py`** (Gemini-based Generator identification).
+- **`app/diagnostics/`**: Contains analytics modules (Shannon Entropy, Statistical Disagreement, 2D FFT Spectral scoring). Also contains **`explainer.py`** (Gemini explanation), **`metadata_inspector.py`** (C2PA/EXIF screening and `c2pa-python` offline generator model extraction), and **`grad_cam.py`** (Heatmap generation).
+- **`model/`**: Contains the frozen weights (`best_resnet50_cifake_retrained.pth`).
 - **`app/app.py`**: Streamlit web dashboard managing UI rendering, single/batch upload tabs, `st.session_state` inference/API caching, on-demand retry buttons, live diagnostic logits expanders, and CSV downloads.
 
 ---

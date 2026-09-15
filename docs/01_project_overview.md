@@ -35,12 +35,15 @@ Key objectives:
 
 ---
 
-## 5. Core Features
-- **Multi-Strategy Inference**: Five robust strategies including Baseline Resize, Variance-Guided Native Patch Voting, 8-View Test-Time Augmentation (TTA), Hybrid Consensus, and an intelligent Auto-Dispatcher.
-- **Advanced Diagnostics**: Real-time evaluation of Normalized Shannon Entropy for uncertainty, and 2D Fast Fourier Transform (FFT) analysis to detect structural frequency anomalies.
-- **Single-Image Screening**: Instant upload, preview, and classification with color-coded result boxes (Red for FAKE, Green for REAL, Amber for Low Confidence).
-- **Batch Processing**: Simultaneous multi-image processing with downloadable CSV report.
-- **Live Diagnostics**: Real-time display of Softmax probabilities, inference modes, raw logits, and execution device to prove live computation.
+## 5. Core Features & Hackathon Modules
+- **Core Multi-Strategy Inference**: Five robust strategies including Baseline Resize, Variance-Guided Native Patch Voting, 8-View Test-Time Augmentation (TTA), Hybrid Consensus, and an intelligent Auto-Dispatcher.
+- **Bonus A (Faithful Explanation)**: Grad-CAM heat-maps layered with Gemini-generated natural language cues.
+- **Bonus B (Generator Attribution)**: Offline attribution of specific AI generators via `c2pa-python` byte-decoding, with Gemini multi-class fallbacks.
+- **Bonus C (Robustness)**: High resilience to degradation (compression/resize) via `PATCH_N=32` stable sampling.
+- **Bonus D (Provenance)**: EXIF and C2PA binary signature extraction pre-screening.
+- **Bonus E (Multimodal)**: Image-caption consistency validation JSON scoring.
+- **Bonus F (Deployable UI)**: Real-time interactive Streamlit web dashboard with live diagnostics and Responsible AI framing.
+- **Bonus G (Active Defence)**: FGSM adversarial attack robustness analysis documented separately.
 - **Pretrained Checkpoint**: Loads pre-trained weights (`model/best_resnet50_cifake_retrained.pth`) without retraining during application execution.
 
 ---

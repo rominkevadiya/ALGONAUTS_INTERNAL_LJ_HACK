@@ -6,13 +6,13 @@
 ### 1. Task
 - **Core:** Binary real-vs-AI-generated image classification.
 - **Bonus Modules Attempted:** 
-  - A (Faithful Explanation): Human-readable textual explanations of visual cues via Gemini API (`gemini-3.1-flash-lite` with multi-model failover).
-  - B (Generator Attribution): Multi-class attribution (Diffusion vs GAN) via Gemini API.
-  - C (Robustness to Degradation): Empirical analysis against JPEG compression and resizing.
-  - D (Provenance & Metadata): C2PA / Content Credentials and EXIF pre-screening.
-  - E (Multimodal): Image-text consistency scoring via Gemini API.
-  - F (Real-Time / Deployable): Streamlit Web UI with drag-and-drop, session caching, and batch scanning.
-  - G (Active Defence Analysis): FGSM adversarial attack failure analysis.
+  - A (Faithful Explanation): Textual explanations of visual cues via Gemini API (`gemini-3.1-flash-lite` with multi-model failover) paired with Grad-CAM heat-maps.
+  - B (Generator Attribution): Precise model extraction (e.g., Adobe Firefly) via `c2pa-python` binary manifest decoding, plus multi-class attribution via Gemini API.
+  - C (Robustness to Degradation): High resilience to resizing and compression through `PATCH_N=32` stable patch consensus rather than global downscaling.
+  - D (Provenance & Metadata): Native byte scanning for C2PA `jumbc2pa` manifests, EXIF hardware tags, and Messenger artifacts.
+  - E (Multimodal): Image-caption consistency validation scoring via Gemini API.
+  - F (Real-Time / Deployable): Real-time Streamlit Web UI with responsible "Provenance Verdict" framing, drag-and-drop, and batch scanning.
+  - G (Active Defence Analysis): Thorough FGSM adversarial attack failure analysis and degradation testing.
 
 ### 2. Data & split
 - **Core Training Data:** CIFAKE Dataset (MIT Licensed, ~100k+ labelled $32 \times 32$ images, balanced real/fake).
@@ -21,7 +21,7 @@
 
 ### 3. Model / approach
 - **Backbone:** ResNet-50 deep learning model, fine-tuned with a customized $32 \times 32$ input stem.
-- **Key Hyperparameters:** Evaluated over 8, 16, 32, and 64 patches per image. Patch Aggregation using Mean / Median Probability.
+- **Key Hyperparameters:** Fixed stability parameter `PATCH_N = 32` patches per image to prevent dynamic scaling noise. Patch Aggregation relies on a capped 70% confidence majority threshold.
 - **Augmentation & Robustness:** Implemented Test-Time Augmentation (TTA) with 8 geometrical/photometric views, and Native-Resolution Patch Voting to avoid downscaling destruction of AI artifacts.
 - **Calibration:** Uses Normalized Shannon Entropy to communicate prediction uncertainty.
 
