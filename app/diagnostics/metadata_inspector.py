@@ -67,9 +67,10 @@ CAMERA_MANUFACTURERS = [
 ]
 
 
-def extract_c2pa_generator(raw_bytes: bytes) -> Optional[str]:
+def extract_c2pa_info(raw_bytes: bytes) -> Optional[Dict[str, Any]]:
     """
-    Extracts the software agent or claim generator from a C2PA manifest.
+    Extracts rich information from a C2PA manifest including the software agent, 
+    claim generator, signature issuer, and actions.
     """
     try:
         from c2pa import Reader
@@ -95,21 +96,28 @@ def extract_c2pa_generator(raw_bytes: bytes) -> Optional[str]:
                 return None
                 
             manifest_obj = manifest_data.get("manifests", {}).get(active_manifest, {})
-            assertions = manifest_obj.get("assertions", [])
             
-            # Look for c2pa.actions assertion
+            result = {
+                "claim_generator": manifest_obj.get("claim_generator"),
+                "title": manifest_obj.get("title"),
+                "format": manifest_obj.get("format"),
+                "signature_issuer": manifest_obj.get("signature_info", {}).get("issuer"),
+                "actions": []
+            }
+            
+            assertions = manifest_obj.get("assertions", [])
             for assertion in assertions:
                 if assertion.get("label", "").startswith("c2pa.actions"):
                     actions = assertion.get("data", {}).get("actions", [])
                     for action in actions:
-                        software_agent = action.get("softwareAgent")
-                        if software_agent:
-                            return software_agent
-            
-            # Fallback to claim_generator
-            claim_generator = manifest_obj.get("claim_generator")
-            if claim_generator:
-                return claim_generator
+                        action_type = action.get("action", "unknown")
+                        software = action.get("softwareAgent")
+                        if software:
+                            result["actions"].append(f"{action_type} by {software}")
+                        else:
+                            result["actions"].append(action_type)
+                            
+            return result
                 
     except Exception:
         pass
@@ -202,9 +210,27 @@ def inspect_image_metadata(
         if b"jumbc2pa" in raw_bytes or b"c2pa.claim" in raw_bytes or b"c2pa.manifest" in raw_bytes:
             c2pa_detected = True
             
-            generator_model = extract_c2pa_generator(raw_bytes)
-            if generator_model:
-                metadata_summary["C2PA Generator"] = generator_model
+            c2pa_info = extract_c2pa_info(raw_bytes)
+            if c2pa_info:
+                # Find the primary generator for the override logic
+                generator_model = None
+                if c2pa_info["actions"]:
+                    # Try to extract the first softwareAgent from actions
+                    generator_model = c2pa_info["actions"][0].split(" by ")[-1] if " by " in c2pa_info["actions"][0] else None
+                if not generator_model:
+                    generator_model = c2pa_info["claim_generator"]
+                
+                if generator_model:
+                    metadata_summary["C2PA Generator"] = generator_model
+                    
+                if c2pa_info["signature_issuer"]:
+                    metadata_summary["C2PA Signature Issuer"] = c2pa_info["signature_issuer"]
+                if c2pa_info["title"]:
+                    metadata_summary["C2PA Title"] = c2pa_info["title"]
+                if c2pa_info["format"]:
+                    metadata_summary["C2PA Format"] = c2pa_info["format"]
+                if c2pa_info["actions"]:
+                    metadata_summary["C2PA Actions"] = " | ".join(c2pa_info["actions"])
             else:
                 metadata_summary["C2PA Manifest"] = "Detected Verified JUMBF Digital Provenance Header"
 

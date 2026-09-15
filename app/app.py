@@ -80,99 +80,216 @@ st.set_page_config(
 # Custom CSS Styling
 st.markdown("""
 <style>
+    @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap');
+
+    /* Global Typography */
+    html, body, [class*="css"] {
+        font-family: 'Outfit', sans-serif !important;
+    }
+
     .main .block-container {
         padding-top: 1.5rem;
-        padding-bottom: 3rem;
+        padding-bottom: 2rem;
+        max-width: 1100px;
     }
     
+    /* Glassmorphism Header */
     .header-card {
-        background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+        background: rgba(15, 23, 42, 0.5);
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
         color: #ffffff;
-        padding: 1.8rem;
-        border-radius: 12px;
-        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
-        margin-bottom: 1.5rem;
-        border: 1px solid #334155;
+        padding: 1.5rem 2rem;
+        border-radius: 16px;
+        box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+        margin-bottom: 2rem;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+
+    .header-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 12px 40px 0 rgba(56, 189, 248, 0.15);
     }
     
     .header-title {
-        font-size: 2.3rem;
+        font-size: 2.2rem;
         font-weight: 800;
-        letter-spacing: -0.025em;
-        margin-bottom: 0.3rem;
-        background: linear-gradient(90deg, #38bdf8 0%, #818cf8 100%);
+        letter-spacing: -0.02em;
+        margin-bottom: 0.2rem;
+        background: linear-gradient(135deg, #38bdf8 0%, #818cf8 100%);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
     }
     
     .header-subtitle {
-        font-size: 1.05rem;
+        font-size: 1rem;
         color: #94a3b8;
         margin-bottom: 0;
+        font-weight: 400;
+    }
+    
+    /* Result Boxes with Glow and Entrance Animation */
+    @keyframes slideUpFade {
+        from { opacity: 0; transform: translateY(20px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    .result-box-fake, .result-box-real, .result-box-warning {
+        animation: slideUpFade 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        border-radius: 16px;
+        padding: 1.8rem;
+        text-align: center;
+        margin-top: 1.5rem;
+        position: relative;
+        overflow: hidden;
+        z-index: 1;
+    }
+
+    .result-box-fake::before, .result-box-real::before, .result-box-warning::before {
+        content: "";
+        position: absolute;
+        top: 0; left: 0; right: 0; bottom: 0;
+        z-index: -1;
+        opacity: 0.15;
     }
     
     .result-box-fake {
-        background: linear-gradient(135deg, #450a0a 0%, #200000 100%);
-        border: 1px solid #ef4444;
-        border-radius: 12px;
-        padding: 2rem;
+        background: rgba(69, 10, 10, 0.7);
+        backdrop-filter: blur(12px);
+        border: 1px solid rgba(239, 68, 68, 0.4);
         color: #fecdd3;
-        text-align: center;
-        margin-top: 1rem;
-        box-shadow: 0 10px 25px -5px rgba(239, 68, 68, 0.4);
+        box-shadow: 0 8px 32px rgba(239, 68, 68, 0.25);
     }
+    .result-box-fake::before { background: radial-gradient(circle at top right, #ef4444, transparent 70%); }
     
     .result-box-real {
-        background: linear-gradient(135deg, #064e3b 0%, #002211 100%);
-        border: 1px solid #10b981;
-        border-radius: 12px;
-        padding: 2rem;
+        background: rgba(6, 78, 59, 0.7);
+        backdrop-filter: blur(12px);
+        border: 1px solid rgba(16, 185, 129, 0.4);
         color: #a7f3d0;
-        text-align: center;
-        margin-top: 1rem;
-        box-shadow: 0 10px 25px -5px rgba(16, 185, 129, 0.4);
+        box-shadow: 0 8px 32px rgba(16, 185, 129, 0.25);
     }
+    .result-box-real::before { background: radial-gradient(circle at top right, #10b981, transparent 70%); }
     
     .result-box-warning {
-        background: linear-gradient(135deg, #451a03 0%, #220000 100%);
-        border: 1px solid #f59e0b;
-        border-radius: 12px;
-        padding: 2rem;
+        background: rgba(69, 26, 3, 0.7);
+        backdrop-filter: blur(12px);
+        border: 1px solid rgba(245, 158, 11, 0.4);
         color: #fef3c7;
-        text-align: center;
-        margin-top: 1rem;
-        box-shadow: 0 10px 25px -5px rgba(245, 158, 11, 0.4);
+        box-shadow: 0 8px 32px rgba(245, 158, 11, 0.25);
     }
+    .result-box-warning::before { background: radial-gradient(circle at top right, #f59e0b, transparent 70%); }
     
     .result-label {
         font-size: 2.2rem;
         font-weight: 800;
-        margin-bottom: 0.2rem;
+        margin-bottom: 0.3rem;
+        letter-spacing: -0.01em;
     }
     
     .result-subtext {
-        font-size: 0.95rem;
+        font-size: 1.05rem;
         opacity: 0.9;
+        font-weight: 300;
+    }
+
+    /* Streamlit Button Overrides */
+    div[data-testid="stButton"] > button {
+        background: linear-gradient(135deg, #3b82f6 0%, #6366f1 100%);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        padding: 0.5rem 1.5rem;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 14px 0 rgba(99, 102, 241, 0.39);
+    }
+
+    div[data-testid="stButton"] > button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(99, 102, 241, 0.6);
+        color: white;
+        border: none;
+    }
+
+    div[data-testid="stButton"] > button:active {
+        transform: translateY(0px);
+    }
+
+    /* File uploader hover */
+    div[data-testid="stFileUploader"] section {
+        border: 2px dashed rgba(255, 255, 255, 0.2);
+        border-radius: 12px;
+        background: rgba(255, 255, 255, 0.02);
+        transition: all 0.3s ease;
+    }
+    div[data-testid="stFileUploader"] section:hover {
+        border-color: #38bdf8;
+        background: rgba(56, 189, 248, 0.05);
+    }
+    
+    /* Expander UI Fix */
+    div[data-testid="stExpander"] {
+        border-radius: 12px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        overflow: hidden;
     }
 </style>
 """, unsafe_allow_html=True)
 
 
 def main():
+    if "selected_mode_key" not in st.session_state:
+        st.session_state.selected_mode_key = DEFAULT_INFERENCE_MODE
+    if "patch_n_val" not in st.session_state:
+        st.session_state.patch_n_val = PATCH_N
+    if "aggregation_val" not in st.session_state:
+        st.session_state.aggregation_val = PATCH_AGGREGATION_DEFAULT
+    if "seed_val" not in st.session_state:
+        st.session_state.seed_val = 42
+
+    selected_mode_key = st.session_state.selected_mode_key
+    patch_n_val = st.session_state.patch_n_val
+    aggregation_val = st.session_state.aggregation_val
+    seed_val = st.session_state.seed_val
+
     # Application Header
     st.markdown("""
     <div class="header-card">
-        <div class="header-title">🔍 SignalScope</div>
-        <div class="header-subtitle">AI-Generated Image Detection & Diagnostics System</div>
-        <p style="margin-top: 0.8rem; color: #cbd5e1; font-size: 0.95rem;">
-            Screen images using the trained ResNet-50 model with multi-strategy inference (Native Patch Voting, Hybrid, TTA) 
-            to classify whether an image is <strong>AI-Generated (FAKE)</strong> or an <strong>Authentic Photograph (REAL)</strong>.
-        </p>
+        <div style="display: flex; align-items: center; justify-content: space-between;">
+            <div>
+                <div class="header-title">🔍 SignalScope</div>
+                <div class="header-subtitle">AI-Generated Image Detection & Diagnostics System</div>
+            </div>
+        </div>
     </div>
     """, unsafe_allow_html=True)
 
     # Sidebar: Model Setup & Inference Controls
     with st.sidebar:
+        st.header("🧠 Model Information")
+        st.markdown("""
+        **Architecture**: ResNet-50 (PyTorch)
+        
+        **Training Dataset**: CIFAKE (120,000 images)
+        - **Authentic**: 60,000 real CIFAR-10 photos
+        - **AI-Generated**: 60,000 Latent Diffusion images
+        
+        **Model Strengths**:
+        - Highly accurate at detecting diffusion artifacts
+        - Extremely robust to compression and resizing
+        
+        **Model Limitations**:
+        - May struggle with older non-diffusion GANs
+        - Potential for false positives on heavily-filtered real photographs
+        
+        **Confusion Matrix Insights**:
+        - **High Recall on Fake**: The model rarely misses AI-generated images.
+        - **Precision on Real**: It errs on the side of caution when classifying real photos.
+        """)
+        
+        st.markdown("---")
         st.header("⚡ System Status")
         
         try:
@@ -184,64 +301,12 @@ def main():
             st.error(f"Details: {str(err)}")
             st.stop()
 
-        st.markdown("---")
-        st.subheader("📊 CIFAKE Test Benchmarks")
-        for key, val in BENCHMARK_METRICS.items():
-            st.markdown(f"**{key}:** `{val}`")
-
-        st.markdown("---")
-        st.info(CONFIDENCE_DISCLAIMER)
-
     # Navigation Tabs
-    tab_single, tab_batch, tab_engine, tab_about = st.tabs([
+    tab_single, tab_batch, tab_about = st.tabs([
         "🖼️ Single Image Analysis", 
         "📁 Batch Processing", 
-        "⚙️ Engine Settings",
         "ℹ️ Technical Details & Benchmark"
     ])
-    
-    with tab_engine:
-        st.header("⚙️ Inference Engine Controls")
-        st.write("Modify the underlying mechanics of the ResNet-50 PyTorch model.")
-        from app.strategies.strategy_registry import list_strategies
-        registered_strats = list_strategies()
-        strategy_options = [s["key"] for s in registered_strats]
-        strategy_labels = {s["key"]: s["display_name"] for s in registered_strats}
-
-        selected_mode_key = st.selectbox(
-            "Inference Strategy",
-            options=strategy_options,
-            index=strategy_options.index(DEFAULT_INFERENCE_MODE) if DEFAULT_INFERENCE_MODE in strategy_options else 0,
-            format_func=lambda x: strategy_labels.get(x, x),
-            help="Select how the image is presented to the trained model."
-        ) or "auto"
-
-        st.subheader("🛠️ Advanced Parameters")
-        patch_n_val = st.slider(
-            "Number of Patches (Patch/Hybrid)",
-            min_value=8,
-            max_value=64,
-            value=PATCH_N,
-            step=4,
-            help="Number of native 32x32 crops extracted across the image. Higher takes longer but is more accurate."
-        )
-        
-        aggregation_val = st.selectbox(
-            "Patch Aggregation",
-            options=PATCH_AGGREGATION_METHODS,
-            index=PATCH_AGGREGATION_METHODS.index(PATCH_AGGREGATION_DEFAULT),
-            help="Strategy to aggregate patch-level predictions. Mean is balanced, Max is highly sensitive."
-        )
-        
-        seed_val = st.number_input(
-            "Random Seed",
-            min_value=0,
-            max_value=9999,
-            value=42,
-            step=1,
-            help="Ensures deterministic patch crop locations for reproducibility."
-        )
-
 
     # ------------------------------------------------------------------
     # TAB 1: Single Image Inference
@@ -303,8 +368,47 @@ def main():
                         st.image(image_32, caption="ResNet-50 Stem Input (Exact 32×32 px Bicubic Downscale)", width="stretch")
                         st.info("💡 **Neural Network Perspective:** This 32×32 pixel image is the exact bicubic downscaled input fed into the baseline ResNet-50 model stem. Notice how fine pixel textures are compressed.")
 
+                    with st.expander("⚙️ Inference Engine Controls", expanded=False):
+                        from app.strategies.strategy_registry import list_strategies
+                        registered_strats = list_strategies()
+                        strategy_options = [s["key"] for s in registered_strats]
+                        strategy_labels = {s["key"]: s["display_name"] for s in registered_strats}
+                
+                        st.selectbox(
+                            "Inference Strategy",
+                            options=strategy_options,
+                            key="selected_mode_key",
+                            format_func=lambda x: strategy_labels.get(x, x),
+                            help="Select how the image is presented to the trained model."
+                        )
+                
+                        st.slider(
+                            "Number of Patches (Patch/Hybrid)",
+                            min_value=8,
+                            max_value=64,
+                            step=4,
+                            key="patch_n_val",
+                            help="Number of native 32x32 crops extracted across the image. Higher takes longer but is more accurate."
+                        )
+                        
+                        st.selectbox(
+                            "Patch Aggregation",
+                            options=PATCH_AGGREGATION_METHODS,
+                            key="aggregation_val",
+                            help="Strategy to aggregate patch-level predictions. Mean is balanced, Max is highly sensitive."
+                        )
+                        
+                        st.number_input(
+                            "Random Seed",
+                            min_value=0,
+                            max_value=9999,
+                            step=1,
+                            key="seed_val",
+                            help="Ensures deterministic patch crop locations for reproducibility."
+                        )
+
                     st.markdown("<br>", unsafe_allow_html=True)
-                    if st.button("🔎 Analyze Image", type="primary", width="stretch"):
+                    if st.button("🔎 Analyze Image", type="primary", use_container_width=True):
                         st.session_state.analyze_clicked = True
                         st.session_state.force_reanalyze = True
                 else:
