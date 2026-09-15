@@ -24,8 +24,12 @@ except ImportError:
     types = None  # type: ignore[assignment]
 
 
+<<<<<<< HEAD
 DEFAULT_MODELS = ["gemini-3.1-flash-lite", "gemini-3.5-flash", "gemini-3.5-flash-lite"]
 GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.1-flash-lite")
+=======
+GEMINI_MODEL = "gemini-2.5-flash"
+>>>>>>> cd356e6 (Stabilize inference pipeline, make patch count deterministic, and fix localized patch false positives)
 _LOGGER = logging.getLogger(__name__)
 _CLIENT: Any = None
 _CLIENT_LOCK = threading.Lock()
@@ -39,9 +43,9 @@ _REQUEST_TIMESTAMPS = deque()
 # quota assigned to the Gemini project. Cached requests do not consume slots.
 MAX_REQUESTS_PER_MINUTE = 12
 MIN_REQUEST_INTERVAL_SECONDS = 1.0
-MAX_TRANSIENT_RETRIES = 3
-TRANSIENT_BACKOFF_SECONDS = 1.0
-MAX_RETRY_DELAY_SECONDS = 4.0
+MAX_TRANSIENT_RETRIES = 5
+TRANSIENT_BACKOFF_SECONDS = 2.0
+MAX_RETRY_DELAY_SECONDS = 15.0
 
 
 def _result(success: bool, text: str = "", error: Optional[str] = None, *, cache_hit: bool = False, cache_miss: bool = False, retry_after_seconds: Optional[float] = None) -> Dict[str, Any]:
@@ -102,7 +106,7 @@ def _error_code(exc: Exception) -> str:
     message = str(exc).upper()
     if "429" in message or "RESOURCE_EXHAUSTED" in message:
         return "rate_limited"
-    if any(marker in message for marker in ("TIMEOUT", "UNAVAILABLE", "CONNECTION", "TEMPORARY", "500", "502", "503", "504")):
+    if any(marker in message for marker in ("TIMEOUT", "UNAVAILABLE", "CONNECTION", "TEMPORARY", "500", "502", "503", "504", "MALFORMED_RESPONSE")):
         return "transient_api_failure"
     return "gemini_api_failure"
 
@@ -170,6 +174,7 @@ def _generate(*, task_id: str, prompt: str, image: Optional[Union[Image.Image, b
         client = _get_client()
         if client is None:
             return _result(False, error="missing_api_key", cache_miss=True)
+<<<<<<< HEAD
         # Ensure adequate token budget and disable thinking overhead for fast (<4s) UI responses
         token_limit = max(max_output_tokens or 800, 800)
         config_kwargs: Dict[str, Any] = {"temperature": temperature, "max_output_tokens": token_limit}
@@ -178,6 +183,21 @@ def _generate(*, task_id: str, prompt: str, image: Optional[Union[Image.Image, b
                 config_kwargs["thinking_config"] = types.ThinkingConfig(thinking_budget=0)
             except Exception:
                 pass
+=======
+        config_kwargs: Dict[str, Any] = {"temperature": temperature, "max_output_tokens": max_output_tokens}
+        if response_mime_type:
+            config_kwargs["response_mime_type"] = response_mime_type
+            
+        config_kwargs["safety_settings"] = [
+            types.SafetySetting(category=c, threshold=types.HarmBlockThreshold.BLOCK_NONE)
+            for c in [
+                types.HarmCategory.HARM_CATEGORY_HATE_SPEECH,
+                types.HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
+                types.HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
+                types.HarmCategory.HARM_CATEGORY_HARASSMENT,
+            ]
+        ]
+>>>>>>> cd356e6 (Stabilize inference pipeline, make patch count deterministic, and fix localized patch false positives)
         config = types.GenerateContentConfig(**config_kwargs)
         response = None
         target_model = GEMINI_MODEL
@@ -190,7 +210,17 @@ def _generate(*, task_id: str, prompt: str, image: Optional[Union[Image.Image, b
                 _LOGGER.info("Gemini request deferred by the local rate limiter for task '%s'. Sleeping %.1fs.", task_id, locally_limited_for)
                 time.sleep(locally_limited_for)
             try:
+<<<<<<< HEAD
                 response = client.models.generate_content(model=target_model, contents=[image, prompt] if image is not None else prompt, config=config)
+=======
+                response = client.models.generate_content(model=GEMINI_MODEL, contents=[image, prompt] if image is not None else prompt, config=config)
+                try:
+                    text = response.text
+                except ValueError:
+                    text = None
+                if not isinstance(text, str) or not text.strip():
+                    raise ValueError("MALFORMED_RESPONSE")
+>>>>>>> cd356e6 (Stabilize inference pipeline, make patch count deterministic, and fix localized patch false positives)
                 break
             except Exception as exc:
                 exc_str = str(exc).upper()
@@ -204,23 +234,32 @@ def _generate(*, task_id: str, prompt: str, image: Optional[Union[Image.Image, b
                         continue
                 error = _error_code(exc)
                 retry_after = _retry_after_seconds(exc)
+<<<<<<< HEAD
                 # A 429 can be retried only when the server asks for a short wait;
                 # longer waits are returned to the caller to avoid blocking Streamlit.
+=======
+                # A 429 can be retried if it's not explicitly a very long wait
+>>>>>>> cd356e6 (Stabilize inference pipeline, make patch count deterministic, and fix localized patch false positives)
                 can_retry_rate_limit = error == "rate_limited" and (retry_after is None or retry_after <= MAX_RETRY_DELAY_SECONDS)
                 can_retry_transient = error == "transient_api_failure"
                 if attempt >= MAX_TRANSIENT_RETRIES or not (can_retry_rate_limit or can_retry_transient):
                     _LOGGER.warning("Gemini request failed for task '%s' (%s).", task_id, error)
                     return _result(False, error=error, cache_miss=True, retry_after_seconds=retry_after)
-                delay = retry_after if retry_after is not None else min(TRANSIENT_BACKOFF_SECONDS * (2 ** attempt), MAX_RETRY_DELAY_SECONDS)
+                if can_retry_rate_limit and retry_after is not None:
+                    delay = retry_after
+                else:
+                    delay = min(TRANSIENT_BACKOFF_SECONDS * (2 ** attempt), MAX_RETRY_DELAY_SECONDS)
+                # A retry is itself a request, so leave enough spacing for the
+                # local limiter as well as honouring the server's advice.
                 delay = max(delay, MIN_REQUEST_INTERVAL_SECONDS)
                 _LOGGER.info("Retrying transient Gemini failure for task '%s' once after a bounded delay.", task_id)
                 time.sleep(delay)
         if response is None:
             return _result(False, error="gemini_api_failure", cache_miss=True)
-        text = getattr(response, "text", None)
-        if not isinstance(text, str) or not text.strip():
-            _LOGGER.warning("Gemini returned an empty or malformed response for task '%s'.", task_id)
-            return _result(False, error="malformed_response", cache_miss=True)
+        try:
+            text = response.text
+        except ValueError:
+            text = ""
         clean_text = text.strip()
         if clean_text.startswith("```"):
             clean_text = re.sub(r"^```(?:json)?\s*", "", clean_text, flags=re.IGNORECASE)

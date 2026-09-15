@@ -15,6 +15,7 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s | %(levelname)s | %(
 logger = logging.getLogger(__name__)
 
 from typing import Dict, Any
+from app.config import PATCH_N
 
 from app.diagnostics.disagreement import (
     compute_prediction_disagreement,
@@ -66,13 +67,19 @@ def predict_image_auto(
     model=None,
     device=None,
     mode: str = "auto",
-    n_patches: int = 0,
+    n_patches: int = PATCH_N,
     seed: int = 42,
     aggregation: str = "mean",
-    precomputed_metadata: Dict[str, Any] = None
+    precomputed_metadata: Dict[str, Any] = None,
+    raw_bytes=None,
 ):
     """
     Unified automatic dispatcher supporting modes: 'auto', 'multiscale', 'resize', 'patch', 'hybrid', 'tta'.
+
+    Args:
+        raw_bytes: Original file bytes from the upload. Passed to the metadata
+                   inspector for C2PA JUMBF binary scanning. Without this, PIL
+                   re-encoding strips the manifest from the byte stream.
     """
     logger.info(f"🚀 Starting Inference | Requested Mode: {mode.upper()}")
     start_time = time.time()
@@ -85,7 +92,8 @@ def predict_image_auto(
         n_patches=n_patches,
         seed=seed,
         aggregation=aggregation,
-        precomputed_metadata=precomputed_metadata
+        precomputed_metadata=precomputed_metadata,
+        raw_bytes=raw_bytes,
     )
     
     logger.info(f"🏁 Final Result: {result}")

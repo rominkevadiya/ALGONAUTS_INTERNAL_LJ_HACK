@@ -95,10 +95,6 @@ def extract_native_patches(
     if w < pw or h < ph:
         return [clean_image], [(0, 0, w, h)]
 
-    # Dynamic patch count scaling based on resolution
-    if n_patches == 0:
-        # Scale up to 64 patches for 1080p+, down to 16 for small images
-        n_patches = max(16, min(64, int((w * h) / (512 * 512) * 32)))
 
     rng = random.Random(seed)
     crops: List[Image.Image] = []

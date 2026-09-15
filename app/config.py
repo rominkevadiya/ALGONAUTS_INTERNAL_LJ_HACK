@@ -30,7 +30,7 @@ MODERATE_CONFIDENCE_THRESHOLD = 0.70
 DEFAULT_INFERENCE_MODE = "auto"
 PATCH_N = 32
 PATCH_THRESHOLD_PX = 128
-PATCH_AGGREGATION_DEFAULT = "mean"
+PATCH_AGGREGATION_DEFAULT = "majority"
 PATCH_AGGREGATION_METHODS = ["mean", "median", "majority", "logit_mean", "max", "top_k"]
 
 # Multi-Scale Inference Configuration

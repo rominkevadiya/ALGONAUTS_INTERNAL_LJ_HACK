@@ -332,7 +332,8 @@ def main():
                             n_patches=patch_n_val,
                             seed=int(seed_val),
                             aggregation=aggregation_val,
-                            precomputed_metadata=pre_meta
+                            precomputed_metadata=pre_meta,
+                            raw_bytes=raw_bytes,
                         )
                         elapsed_ms = (time.time() - start_t) * 1000
 
@@ -430,6 +431,17 @@ def main():
                 with col_p2:
                     st.metric("Real Probability", f"{real_prob * 100:.2f}%")
                     st.progress(real_prob)
+
+                # When C2PA metadata override is active, also surface the raw ResNet-50
+                # model probabilities so users can see what the visual model alone found.
+                if active_mode == "metadata_provenance" and "model_fake_probability" in res:
+                    model_fake = res["model_fake_probability"]
+                    model_real = res["model_real_probability"]
+                    st.caption(
+                        f"🔬 **ResNet-50 Visual Model Output (pre-override):** "
+                        f"Fake `{model_fake * 100:.1f}%` / Real `{model_real * 100:.1f}%` — "
+                        f"Final verdict locked by C2PA cryptographic provenance."
+                    )
 
                 # --------------------------------------------------
                 # Module B: Generator Attribution

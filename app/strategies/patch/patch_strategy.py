@@ -27,7 +27,7 @@ def predict_image_patch_vote(
     image: Image.Image,
     model: torch.nn.Module | None = None,
     device: torch.device | None = None,
-    n_patches: int = 0,  # 0 enables dynamic patch count based on resolution
+    n_patches: int = PATCH_N,
     seed: int = 42,
     aggregation: str = PATCH_AGGREGATION_DEFAULT
 ) -> Dict[str, Any]:

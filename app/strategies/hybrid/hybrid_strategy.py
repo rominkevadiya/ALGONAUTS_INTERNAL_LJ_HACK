@@ -73,8 +73,8 @@ def predict_image_hybrid(
     # High-res AI images (Gemini, Midjourney) often have smooth backgrounds (sky/walls) 
     # that fool baseline resize, but contain severe AI artifacts in key patches.
     # ONLY trigger if resize is NOT overwhelmingly REAL (< 0.90) AND patch vote is strongly fake (>= 0.55).
-    if top_k_patch_fake >= 0.92 and resize_real < 0.90 and patch_fake >= 0.55 and fft_score >= 0.45 and not (dark_image and lit_patch_fake < 0.40):
-        hybrid_fake = float(max(0.60, top_k_patch_fake * 0.70 + resize_fake * 0.30))
+    if top_k_patch_fake >= 0.92 and resize_fake >= 0.40 and resize_real < 0.90 and patch_fake >= 0.55 and fft_score >= 0.45 and not (dark_image and lit_patch_fake < 0.40):
+        hybrid_fake = float(top_k_patch_fake * 0.70 + resize_fake * 0.30)
         hybrid_real = 1.0 - hybrid_fake
         hybrid_label = "FAKE"
         hybrid_confidence = hybrid_fake
@@ -82,7 +82,7 @@ def predict_image_hybrid(
 
     # Branch 1: Baseline Resize is overwhelmingly REAL (resize_real >= 0.90)
     elif resize_real >= 0.90:
-        if patch_fake >= 0.65 and top_k_patch_fake >= 0.92 and fft_score >= 0.50:
+        if resize_fake >= 0.40 and patch_fake >= 0.65 and top_k_patch_fake >= 0.92 and fft_score >= 0.50:
             # Strong evidence from multiple patches AND spectral irregularity required to override a >90% REAL baseline
             hybrid_fake = float((resize_fake * 0.35 + top_k_patch_fake * 0.65))
             hybrid_real = 1.0 - hybrid_fake
@@ -122,7 +122,7 @@ def predict_image_hybrid(
     # Branch 3: Moderate REAL from Baseline (0.50 <= resize_real < 0.90)
     else:
         # Override to FAKE if extreme localized artifacts exist (top_k >= 85%), OR if patch is FAKE and has strong artifacts
-        if (top_k_patch_fake >= 0.90 and fft_score >= 0.45) or (patch_res["label"] == "FAKE" and (top_k_patch_fake >= 0.75 or (patch_fake - resize_fake) >= 0.35)):
+        if resize_fake >= 0.40 and ((top_k_patch_fake >= 0.90 and fft_score >= 0.45) or (patch_res["label"] == "FAKE" and (top_k_patch_fake >= 0.75 or (patch_fake - resize_fake) >= 0.35))):
             # Strong localized AI artifacts; FFT boosts or confirms
             fft_boost = 0.05 if fft_score >= 0.45 else 0.0
             

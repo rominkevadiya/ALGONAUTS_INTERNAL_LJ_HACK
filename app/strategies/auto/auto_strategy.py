@@ -1,5 +1,5 @@
 import logging
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 from PIL import Image
 import torch
 import pandas as pd
@@ -10,6 +10,7 @@ from app.config import (
     DEFAULT_INFERENCE_MODE,
     PATCH_AGGREGATION_DEFAULT,
     METADATA_OVERRIDE_CONFIDENCE_CAP,
+    PATCH_N,
 )
 from app.model_loader import load_model, resolve_model_device
 from app.diagnostics.entropy import compute_prediction_entropy
@@ -31,13 +32,31 @@ def predict_image_auto(
     model: torch.nn.Module | None = None,
     device: torch.device | None = None,
     mode: str = DEFAULT_INFERENCE_MODE,
-    n_patches: int = 0,  # 0 enables dynamic patch count based on resolution
+    n_patches: int = PATCH_N,
     seed: int = 42,
     aggregation: str = PATCH_AGGREGATION_DEFAULT,
-    precomputed_metadata: Dict[str, Any] = None
+    precomputed_metadata: Dict[str, Any] = None,
+    raw_bytes: Optional[bytes] = None,
 ) -> Dict[str, Any]:
     """
     Unified automatic dispatcher supporting modes: 'auto', 'multiscale', 'resize', 'patch', 'hybrid', 'tta'.
+
+    Args:
+        image: Original PIL Image before any preparation steps.
+        model: Optional pre-loaded PyTorch model.
+        device: Optional torch device.
+        mode: Inference strategy key. 'auto' selects based on resolution.
+        n_patches: Number of native 32x32 patches. 0 = dynamic.
+        seed: Random seed for deterministic patch extraction.
+        aggregation: Patch aggregation method.
+        precomputed_metadata: Pre-screened metadata dict from app.py upload handler.
+                              Reused as-is to avoid re-scanning and to preserve the
+                              raw-bytes C2PA result already computed from the original
+                              upload file bytes.
+        raw_bytes: Original file bytes of the uploaded image. Used for C2PA JUMBF
+                   binary scanning when precomputed_metadata is not provided (e.g.
+                   batch mode, robustness tests). Without this, PIL re-encoding
+                   strips the C2PA manifest from the byte stream.
     """
     clean_img = prepare_image(image)
     w, h = clean_img.size
@@ -61,13 +80,16 @@ def predict_image_auto(
     logger.info("Computing 2D FFT Spectral Diagnostic...")
     fft_diagnostic = compute_fft_spectral_diagnostic(clean_img)
 
-    # Use precomputed metadata if provided (preserves C2PA manifest from raw_bytes), otherwise compute it
+    # Use precomputed metadata if provided (preserves C2PA manifest from raw_bytes), otherwise compute it.
+    # IMPORTANT: when recomputing, pass the *original* PIL image (not clean_img) and the original
+    # raw_bytes so the C2PA JUMBF binary scan can find the manifest. PIL .save() re-encoding
+    # strips the JUMBF container, so passing raw_bytes=None causes false-negative C2PA detection.
     logger.info("Checking Metadata & C2PA Provenance...")
     if precomputed_metadata is not None:
         meta_diagnostic = precomputed_metadata
     else:
         from app.diagnostics.metadata_inspector import inspect_image_metadata
-        meta_diagnostic = inspect_image_metadata(clean_img)
+        meta_diagnostic = inspect_image_metadata(image, raw_bytes=raw_bytes)
 
     has_metadata_override = False
     source_id = ""
@@ -112,12 +134,27 @@ def predict_image_auto(
     result["image_dimensions"] = f"{w} x {h}"
     
     if has_metadata_override:
+        # Preserve the raw model output so the UI can show it for transparency.
+        # These keys are optional — downstream code must guard with .get().
+        result["model_fake_probability"] = result["fake_probability"]
+        result["model_real_probability"] = result["real_probability"]
+        result["model_label"] = result["label"]
+        # Override all verdict fields to be consistent with the C2PA provenance decision.
+        # fake_probability and real_probability MUST match the label or the UI will show
+        # a contradictory "Fake: 13% / Real: 87%" while the label says AI-GENERATED.
         result["label"] = "FAKE"
         result["confidence"] = METADATA_OVERRIDE_CONFIDENCE_CAP
+        result["fake_probability"] = METADATA_OVERRIDE_CONFIDENCE_CAP
+        result["real_probability"] = 1.0 - METADATA_OVERRIDE_CONFIDENCE_CAP
         result["inference_mode"] = "metadata_provenance"
         result["agreement"] = f"C2PA / AI Provenance Match ({source_id}) combined with {selected_mode.upper()}"
         result["uncertainty_level"] = "High Confidence (Metadata Match)"
-        result["uncertainty_note"] = f"Image contains AI-related metadata: {source_id}. PyTorch model was run to extract features, but final verdict was overridden by C2PA metadata."
+        result["uncertainty_note"] = (
+            f"Image contains verified AI provenance metadata: {source_id}. "
+            f"PyTorch model ({selected_mode.upper()}) was executed and its probabilities "
+            f"are preserved in model_fake_probability / model_real_probability. "
+            f"Final verdict is locked by cryptographic C2PA provenance."
+        )
         
     return validate_strategy_output(result, strategy_name="auto")
 
@@ -156,7 +193,7 @@ def predict_batch(
     model: torch.nn.Module | None = None,
     device: torch.device | None = None,
     mode: str = DEFAULT_INFERENCE_MODE,
-    n_patches: int = 0,
+    n_patches: int = PATCH_N,
     aggregation: str = PATCH_AGGREGATION_DEFAULT
 ) -> pd.DataFrame:
     """

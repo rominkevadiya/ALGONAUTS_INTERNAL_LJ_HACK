@@ -217,8 +217,9 @@ def test_hybrid_inference_output(dummy_model_and_device):
     assert "prediction_difference" in result
     assert result["agreement"] in [
         "Strong Agreement", "Partial Agreement", "Moderate Agreement", "Strategy Disagreement",
-        "Real Photo (Camera Noise Filtered)", "Local AI Artifacts Detected",
-        "Native Patch Confirmed (Aliasing Filtered)", "FFT Spectral Anomaly Detected"
+        "Real Photo (Pattern Texture Filtered)",
+        "Local AI Artifacts Detected", "Extreme Local AI Artifacts Detected",
+        "Native Patch Confirmed (Aliasing Filtered)", "FFT Spectral Anomaly Detected",
     ]
 
 
