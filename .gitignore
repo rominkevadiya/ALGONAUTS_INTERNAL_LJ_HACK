@@ -67,3 +67,8 @@ model_checkpoints/*.pt
 # Deployment and Secrets
 deploy_aws.py
 *.pem
+
+# Frontend Dependencies & Build Output
+node_modules/
+frontend/dist/
+
