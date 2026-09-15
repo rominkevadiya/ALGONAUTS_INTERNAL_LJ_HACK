@@ -75,6 +75,7 @@ Evaluated on the official **CIFAKE test dataset** (20,000 images). Metrics indep
 | **Test Accuracy** | **97.87%** |
 | **Macro F1-Score** | **0.9786** |
 | **Overall ROC-AUC** | **0.9980** |
+| **Unseen-Generator Split ROC-AUC** | **1.0000** |
 | **PR-AUC** | **0.9981** |
 | **Sensitivity (Recall REAL)** | **97.87%** |
 | **Specificity (Recall FAKE)** | **97.86%** |
@@ -179,7 +180,7 @@ Create a `.env` file in the root directory:
 ```env
 GEMINI_API_KEY=your_google_gemini_api_key_here
 # Optional: override default model
-# GEMINI_MODEL=gemini-2.0-flash-lite
+# GEMINI_MODEL=gemini-3.1-flash-lite
 ```
 
 The key is loaded strictly by `app/api/gemini_gateway.py`. All inference runs fully offline without a key — only Modules A, B, E require Gemini.
@@ -222,6 +223,12 @@ python evaluation/evaluate_unseen.py
 python evaluation/degradation_analysis.py
 python evaluation/adversarial_analysis.py
 ```
+
+---
+
+## 🎥 Demo Video
+
+[Insert Link to 3-5 minute unlisted YouTube demo video here]
 
 ---
 
