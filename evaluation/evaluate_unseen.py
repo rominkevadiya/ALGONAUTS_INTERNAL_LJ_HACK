@@ -53,13 +53,13 @@ def main():
 
     print("\nEvaluating on Unseen Generator Split using Hybrid Strategy...")
     # Using predict_image_hybrid as it is the most robust
-    acc, prec, rec, f1, bal_acc, auc, mean_t = evaluate_strategy(
+    res = evaluate_strategy(
         "Hybrid Inference", predict_image_hybrid, images, labels
     )
     
     results = {
         "Metric": ["Unseen-Split Accuracy", "Unseen-Split Macro-F1", "Unseen-Split ROC-AUC", "Mean Inference Time (ms)"],
-        "Value": [f"{acc*100:.2f}%", f"{f1:.4f}", f"{auc:.4f}", f"{mean_t:.2f} ms"]
+        "Value": [res["Accuracy"], res["F1 Score"], res["ROC-AUC"], res["Avg Time (ms)"]]
     }
 
     df = pd.DataFrame(results)
