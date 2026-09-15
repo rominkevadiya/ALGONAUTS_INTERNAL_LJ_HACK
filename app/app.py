@@ -235,6 +235,9 @@ st.markdown("""
         border: 1px solid rgba(255, 255, 255, 0.1);
         overflow: hidden;
     }
+    img {
+        border-radius: 12px;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -321,8 +324,10 @@ def main():
                 type=["jpg", "jpeg", "png"],
                 help="Upload an image to run live model inference."
             )
-            
-
+            caption_input = st.text_area(
+                "Optional Caption / Claim",
+                help="If the image has a caption or claim (e.g. 'Handmade ceramic mug'), enter it here to test Multimodal Image+Text consistency."
+            )
 
             if uploaded_file is not None:
                 pre_meta = {}
@@ -418,7 +423,7 @@ def main():
             st.subheader("🎯 Inference & Diagnostic Output")
 
             if uploaded_file is not None and st.session_state.get("analyze_clicked", False):
-                analysis_cache_key = f"{uploaded_file.name}_{uploaded_file.size}_{selected_mode_key}_{patch_n_val}_{seed_val}_{aggregation_val}"
+                analysis_cache_key = f"{uploaded_file.name}_{uploaded_file.size}_{selected_mode_key}_{patch_n_val}_{seed_val}_{aggregation_val}_{caption_input}"
                 is_fresh_run = (st.session_state.get("current_cache_key") != analysis_cache_key) or st.session_state.get("force_reanalyze", False)
 
                 if is_fresh_run:
@@ -472,7 +477,7 @@ def main():
                                 image=_gemini_img,
                                 prediction_label=res["label"],
                                 regions=_regions,
-
+                                caption=caption_input if caption_input else None,
                                 diagnostic_context=res
                             )
                         except Exception:
@@ -722,7 +727,7 @@ def main():
                                         image=_g_img,
                                         prediction_label=label,
                                         regions=_regions,
-
+                                        caption=caption_input if caption_input else None,
                                         diagnostic_context=res
                                     )
                                     st.session_state["cached_explanation"] = explanation_data
@@ -748,7 +753,13 @@ def main():
                                     st.session_state["cached_cam_image"] = cam_image
                                     st.rerun()
 
-
+                        if caption_input:
+                            st.markdown("---")
+                            st.write("📝 **Multimodal Image-Text Consistency**")
+                            c_score = explanation_data.get('consistency_score')
+                            if c_score is not None:
+                                st.metric("Consistency Score (0 to 1)", f"{c_score:.2f}")
+                            st.write(f"**Note:** {explanation_data.get('consistency_note')}")
                             
                     # Sub-Tab 8: Live Degradation Test
                     with d_tab_robust:
