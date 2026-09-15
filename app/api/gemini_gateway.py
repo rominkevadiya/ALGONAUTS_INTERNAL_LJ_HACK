@@ -8,7 +8,7 @@ import os
 import re
 import threading
 import time
-from collections import deque
+from collections import deque, OrderedDict
 from typing import Any, Dict, Optional, Union
 
 from dotenv import load_dotenv
@@ -29,7 +29,7 @@ GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.1-flash-lite")
 _LOGGER = logging.getLogger(__name__)
 _CLIENT: Any = None
 _CLIENT_LOCK = threading.Lock()
-_CACHE: Dict[str, str] = {}
+_CACHE: "OrderedDict[str, str]" = OrderedDict()
 _CACHE_LOCK = threading.Lock()
 _IN_FLIGHT: Dict[str, threading.Event] = {}
 _RATE_LOCK = threading.Lock()
@@ -37,6 +37,7 @@ _REQUEST_TIMESTAMPS = deque()
 
 # These limits deliberately regulate this app only; they do not increase the
 # quota assigned to the Gemini project. Cached requests do not consume slots.
+MAX_CACHE_ENTRIES = 500  # LRU eviction cap — prevents unbounded RAM growth
 MAX_REQUESTS_PER_MINUTE = 12
 MIN_REQUEST_INTERVAL_SECONDS = 1.0
 MAX_TRANSIENT_RETRIES = 5
@@ -249,6 +250,9 @@ def _generate(*, task_id: str, prompt: str, image: Optional[Union[Image.Image, b
             clean_text = re.sub(r"\s*```$", "", clean_text).strip()
         with _CACHE_LOCK:
             _CACHE[key] = clean_text
+            # LRU eviction: remove oldest entry when cache exceeds max size
+            if len(_CACHE) > MAX_CACHE_ENTRIES:
+                _CACHE.popitem(last=False)
         return _result(True, clean_text, cache_miss=True)
     except Exception as exc:
         error = _error_code(exc)

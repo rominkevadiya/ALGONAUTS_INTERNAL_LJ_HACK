@@ -19,22 +19,26 @@ The frontend interface (`app/app.py`) is built using **Streamlit 1.63+**.
 
 ## 2. Step-by-Step Inference Pipeline
 
-Every input image undergoes the following 14-step inference sequence:
+Every input image undergoes the following inference sequence:
 
 1. **File Upload**: Image stream received via Streamlit file uploader.
 2. **File Validation**: `uploaded_file.seek(0)` resets byte stream pointer.
 3. **PIL Decoding**: `Image.open(uploaded_file)` decodes image file.
 4. **EXIF Correction**: `ImageOps.exif_transpose(image)` auto-rotates camera metadata tags.
 5. **RGB Standardization**: `image.convert("RGB")` converts Grayscale or RGBA images to 3-channel RGB.
-6. **Spatial Resize**: `transforms.Resize((32, 32))` resizes image to fixed spatial dimensions.
-7. **Tensor Conversion**: `transforms.ToTensor()` scales pixel values $[0, 255] \rightarrow [0.0, 1.0]$.
-8. **Normalization**: `transforms.Normalize()` applies ImageNet Z-scores ($\text{mean}=[0.485, 0.456, 0.406]$, $\text{std}=[0.229, 0.224, 0.225]$).
-9. **Batch Dimension**: `.unsqueeze(0)` shapes tensor to $(1, 3, 32, 32)$.
-10. **Device Transfer**: `.to(device)` transfers tensor to CPU or CUDA GPU memory.
-11. **Inference Context**: Forward pass executed inside `with torch.no_grad():`.
-12. **Forward Pass**: Model outputs raw logits $z_0$ (FAKE) and $z_1$ (REAL).
-13. **Softmax Activation**: `F.softmax(logits, dim=1)` calculates class probabilities $P_0$ and $P_1$.
-14. **Prediction Format**: Returns structured dictionary containing label, confidence, and class probabilities.
+6. **Metadata Pre-Screening**: `metadata_inspector.inspect_image_metadata()` scans EXIF, PNG info, and raw bytes for C2PA manifests and AI signatures (44 known signatures). Result is informational — does not bypass PyTorch model except for confirmed `AI_GENERATED` C2PA verdicts.
+7. **Strategy Dispatch** (`auto` mode routing by minimum image dimension):
+   - `< 64px` → Resize (resize to 32×32 → forward pass)
+   - `64–255px` → Patch (extract native 32×32 crops → batch forward pass → vote)
+   - `256–511px` → Hybrid (Resize + Patch + FFT spectral decision tree)
+   - `≥ 512px` → MultiScale (Global + Context + Native Texture 3-branch fusion)
+8. **Tensor Conversion**: `transforms.ToTensor()` scales pixel values $[0, 255] \rightarrow [0.0, 1.0]$.
+9. **Normalization**: `transforms.Normalize()` applies ImageNet Z-scores.
+10. **Inference**: `torch.inference_mode()` forward pass. Model outputs raw logits $z_0$ (FAKE) and $z_1$ (REAL).
+11. **Softmax Activation**: `F.softmax(logits, dim=1)` calculates class probabilities.
+12. **Strategy Fusion** (Hybrid / MultiScale): Decision tree or weighted branch fusion produces final probability.
+13. **Diagnostics**: Entropy, disagreement, FFT spectral score computed.
+14. **Prediction Format**: Returns structured dictionary with label, confidence, probabilities, diagnostics, and inference metadata.
 
 > [!NOTE]
 > `model.eval()` is set **once** at checkpoint load time, not per request. Batch inference via `predict_batch()` processes images sequentially (one forward pass per image).
@@ -94,20 +98,30 @@ pytest tests/test_predictor.py -v
 - `predict_batch(...) -> pd.DataFrame`: Runs inference on multiple images safely handling exceptions.
 
 ### `app/strategies/`
-- **`auto_strategy.py`**: Graduated dispatcher routing based on resolution (`<64px`, `64-256px`, `>256px`).
-- **`hybrid_strategy.py`**: Decision tree combining Resize, Patch, and FFT diagnostics.
-- **`patch_strategy.py`**: Variance-guided native crop extraction with adaptive luminance thresholds.
-- **`tta_strategy.py`**: 8-view geometric/photometric augmentation with inverse-entropy weighting.
+- **`base_strategy.py`**: Abstract base class + `validate_strategy_output()` schema validator.
+- **`strategy_registry.py`**: Singleton registry — lists and looks up strategies by name.
+- **`auto_strategy.py`**: 4-tier dispatcher routing by minimum image dimension (`<64px` → resize, `64-255px` → patch, `256-511px` → hybrid, `≥512px` → multiscale). FFT is only computed when hybrid is selected.
+- **`hybrid_strategy.py`**: Decision tree combining Resize, Patch, and FFT diagnostics. Calibrated Branch 1b uses threshold-based label (not hardcoded REAL).
+- **`multiscale_strategy.py`**: 3-branch spatial analysis (Global resize + 16 Context patches + N Native Texture crops) with adaptive weight fusion. Supports tri-state output: REAL / FAKE / UNCERTAIN.
+- **`patch_strategy.py`**: Variance-guided native 32×32 crop extraction. Top-K ratio (20%) consistent with `MULTISCALE_TOP_K_RATIO` config constant. Multiple aggregation modes: `mean`, `median`, `majority`, `logit_mean`, `max`, `top_k`.
+- **`tta_strategy.py`**: 8-view augmentation (Original, H-Flip, Center Crop, Bright±15%, Contrast+20%, Rotate 90°/45°) with inverse-entropy weighted aggregation.
 
-### `app/diagnostics/` & `model/` (Bonus Modules)
-- **`explainer.py`**: Integrates Gemini API for human-readable faithful explanations and image-text consistency scoring.
-- **`metadata_inspector.py`**: Extracts EXIF data and validates C2PA Content Credentials for digital provenance.
-- **`grad_cam.py`**: Generates gradient-weighted class activation mapping (Grad-CAM) heatmaps to visualize ResNet focus.
-- **`model/generator_attribution.py`**: Uses Gemini API to deduce the exact generator family (e.g. Midjourney vs DALL-E) from visual artifacts.
+### `app/diagnostics/` (Bonus Modules)
+- **`entropy.py`**: Shannon entropy ($H/\ln2$) + confidence label bands.
+- **`disagreement.py`**: Patch-level statistical disagreement metrics (mean, std, range, agreement %).
+- **`fft_spectral.py`**: 2D FFT radial power spectrum scoring. Used exclusively by hybrid strategy.
+- **`grad_cam.py`**: Gradient-weighted Class Activation Mapping heatmap overlay.
+- **`bounding_box.py`**: Top-N suspect region RGBA overlay renderer.
+- **`explainer.py`**: Gemini faithful explanation caller with structured diagnostic context (Module A).
+- **`metadata_inspector.py`**: C2PA/EXIF/PNG AI provenance inspector with 44 known AI signatures. CAMERA_REAL is informational only — does not bypass model (Module D).
+- **`multimodal_consistency.py`**: Image-caption consistency JSON scorer (Module E).
+
+### `model/generator_attribution.py` (Bonus B Gemini fallback)
+Gemini multimodal classifier for generator family attribution. Uses `app.api` imports. Located in `model/` for historical reasons but architecturally belongs with the diagnostics package.
 
 ### `app/api/` (Centralized Gemini Integration)
-- **`gemini_gateway.py`**: Central gateway implementing default `gemini-3.1-flash-lite`, multi-model failover (`gemini-3.1-flash-lite` $\rightarrow$ `gemini-3.5-flash` $\rightarrow$ `gemini-3.5-flash-lite`), zero-thinking latency optimization (`thinking_budget=0`), thread-safe cache, local rate limiting, bounded 429 retries, and regex markdown code fence stripping.
-- **`prompt_registry.py`**: Versioned prompt definitions for Generator Attribution (Module B), Faithful Explanation (Module A), and Multimodal Caption Consistency (Module E).
+- **`gemini_gateway.py`**: Central gateway implementing primary `gemini-3.1-flash-lite`, multi-model failover, zero-thinking latency (`thinking_budget=0`), thread-safe LRU cache (500 entries max), local rate limiting (12 RPM), request coalescing, bounded 429 retries, and regex markdown fence stripping.
+- **`prompt_registry.py`**: Versioned prompt contracts. Generator attribution uses neutral framing with 30+ generator families. Faithful explanation uses 300-token budget. Multimodal consistency scoped to visible evidence only.
 
 ### `app/app.py`
-- Streamlit application entry point implementing header, tabs, single-image preview, prediction visual boxes, live diagnostic logits expander, batch upload, and CSV downloads. Integrated with `st.session_state` smart caching and retry controls.
+Streamlit application entry point implementing header, tabs, single-image preview, prediction visual boxes, live diagnostic logits expander, bounding box visualization, batch upload, and CSV downloads. Integrated with `st.session_state` smart caching and retry controls.

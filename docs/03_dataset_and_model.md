@@ -44,9 +44,17 @@ This mapping is verified by checkpoint metadata: `class_to_idx: {'FAKE': 0, 'REA
 ### Network Architecture
 - **Backbone**: ResNet-50 (50-layer Residual Neural Network)
 - **Pretrained Weights**: Fine-tuned from ImageNet (`ResNet50_Weights.DEFAULT`)
+- **CIFAR-Adapted Stem**: The standard ImageNet stem (`Conv2d(3, 64, kernel_size=7, stride=2, padding=3)` + `MaxPool2d(3,2,1)`) is **replaced** by:
+  - `Conv2d(3, 64, kernel_size=3, stride=1, padding=1)` — small kernel for 32×32 native resolution
+  - `nn.Identity()` — no spatial downsampling (replaces MaxPool2d)
+  - This allows native 32×32 CIFAR images to traverse all 4 residual stages without collapsing to 1×1 spatial maps.
+  - Detected and applied automatically by `model_loader.py` at load time.
 - **Classifier Head**: Replaced final linear layer (`nn.Linear(in_features=2048, out_features=2)`)
 - **Total Parameters**: **23,565,303 parameters** (23.57 million weights)
 - **Output Classes**: 2 (`FAKE` vs `REAL`)
+
+> [!NOTE]
+> **Native 32×32 patch inference**: In Patch, Hybrid, and MultiScale strategies, each 32×32 crop is passed **directly** to the model without resizing to 224×224. The CIFAR-adapted stem is specifically designed for this — the model operates at native CIFAR resolution during inference. Only the Resize strategy performs bicubic downsampling of the full image.
 
 ---
 
@@ -56,3 +64,4 @@ This mapping is verified by checkpoint metadata: `class_to_idx: {'FAKE': 0, 'REA
 - **Top-Level Checkpoint Keys**: `['model_state_dict', 'class_names', 'class_to_idx', 'img_size']`
 - **Optimizer & Loss**: Trained using `AdamW` (learning rate $1 \times 10^{-4}$, weight decay $1 \times 10^{-4}$) and `CrossEntropyLoss`.
 - **CIFAR-Adapted Stem**: Uses `Conv2d(3, 64, kernel_size=3, stride=1, padding=1)` and `nn.Identity()` maxpool instead of the standard ImageNet `7×7` stem, matched automatically by `model_loader.py`.
+- **Checkpoint Security**: Loaded with `weights_only=True`. A comprehensive numpy dtype allowlist (`numpy.dtype`, `numpy._core.multiarray.scalar`, all `numpy.dtypes.*` concrete types) is registered at import time, satisfying PyTorch 2.6+ security requirements.

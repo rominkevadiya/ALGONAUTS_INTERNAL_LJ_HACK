@@ -10,10 +10,23 @@ import torch.nn as nn
 from torchvision import models
 import numpy
 
-# PyTorch 2.6+ security update: allowlist numpy scalar for unpickling checkpoint
+# PyTorch 2.6+ security: allowlist the specific numpy types embedded in this checkpoint.
+# The checkpoint saves class metadata as numpy arrays, which requires these types.
+# This is safe as the checkpoint is from the project's own trusted training pipeline.
+# numpy.dtype, numpy.dtypes.* and numpy._core.multiarray.scalar cover all checkpoint types.
+import numpy.dtypes as _np_dtypes
 try:
     if hasattr(torch.serialization, 'add_safe_globals'):
-        torch.serialization.add_safe_globals([numpy._core.multiarray.scalar])
+        _numpy_safe_types = [
+            numpy.dtype,
+            numpy._core.multiarray.scalar,
+        ]
+        # Add all concrete dtype classes from numpy.dtypes (Float64DType, Int64DType, etc.)
+        for _attr in dir(_np_dtypes):
+            _cls = getattr(_np_dtypes, _attr, None)
+            if isinstance(_cls, type):
+                _numpy_safe_types.append(_cls)
+        torch.serialization.add_safe_globals(_numpy_safe_types)
 except Exception:
     pass
 
@@ -48,7 +61,7 @@ def _load_model_impl(target_path: Path) -> tuple[nn.Module, torch.device]:
     device = get_device()
 
     try:
-        checkpoint = torch.load(target_path, map_location=device, weights_only=False)
+        checkpoint = torch.load(target_path, map_location=device, weights_only=True)
     except Exception as e:
         raise RuntimeError(
             f"Failed to load checkpoint from {target_path}. File may be corrupted or unreadable. Error: {e}"

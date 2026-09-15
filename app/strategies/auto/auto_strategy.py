@@ -35,7 +35,7 @@ def predict_image_auto(
     n_patches: int = PATCH_N,
     seed: int = 42,
     aggregation: str = PATCH_AGGREGATION_DEFAULT,
-    precomputed_metadata: Dict[str, Any] = None,
+    precomputed_metadata: Optional[Dict[str, Any]] = None,
     raw_bytes: Optional[bytes] = None,
 ) -> Dict[str, Any]:
     """
@@ -66,19 +66,27 @@ def predict_image_auto(
     logger.info(f"Image Resolution: {w}x{h}")
 
     # Resolution & context-aware automatic selection logic
+    # Routing tiers (based on minimum dimension):
+    #   < 64px   → resize  (tiny image; native patches impossible)
+    #   64-255px → patch   (small image; native 32×32 crops cover it)
+    #   256-511px → hybrid (medium image; resize + patch + FFT consensus)
+    #   ≥ 512px  → multiscale (large/high-res; 3-branch spatial analysis)
     selected_mode = mode
     if mode == "auto":
         if min_dim < 64:
             selected_mode = "resize"
         elif min_dim < 256:
             selected_mode = "patch"
-        else:
+        elif min_dim < 512:
             selected_mode = "hybrid"
+        else:
+            selected_mode = "multiscale"
 
-
-    # Compute FFT once at the dispatcher level for hybrid/auto to avoid double computation
-    logger.info("Computing 2D FFT Spectral Diagnostic...")
-    fft_diagnostic = compute_fft_spectral_diagnostic(clean_img)
+    # Compute FFT only when hybrid mode will actually use it (avoids wasted compute for resize/patch/multiscale routes)
+    fft_diagnostic = {}
+    if selected_mode in ("hybrid",):
+        logger.info("Computing 2D FFT Spectral Diagnostic...")
+        fft_diagnostic = compute_fft_spectral_diagnostic(clean_img)
 
     # Use precomputed metadata if provided (preserves C2PA manifest from raw_bytes), otherwise compute it.
     # IMPORTANT: when recomputing, pass the *original* PIL image (not clean_img) and the original

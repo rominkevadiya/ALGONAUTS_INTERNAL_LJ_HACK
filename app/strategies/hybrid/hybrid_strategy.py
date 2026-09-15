@@ -94,9 +94,11 @@ def predict_image_hybrid(
             # High-frequency pattern texture (woven fabric/bedsheets/tablecloth/noise) in a real photo
             hybrid_fake = float(resize_fake * 0.75 + patch_fake * 0.25)
             hybrid_real = 1.0 - hybrid_fake
-            hybrid_label = "REAL"
-            hybrid_confidence = hybrid_real
-            agreement = "Real Photo (Pattern Texture Filtered)"
+            # BUG FIX: Previously hardcoded to "REAL" regardless of computed hybrid_fake.
+            # Now correctly uses threshold — a high fake score (e.g. 0.83) will label FAKE.
+            hybrid_label = "FAKE" if hybrid_fake >= MULTISCALE_FAKE_THRESHOLD else "REAL"
+            hybrid_confidence = hybrid_fake if hybrid_label == "FAKE" else hybrid_real
+            agreement = "Real Photo (Pattern Texture Filtered)" if hybrid_label == "REAL" else "Localized AI Artifacts Detected"
 
 
     # Branch 2: Baseline Resize predicts FAKE (often distorted by 32x32 downscaling aliasing on high-res camera photos)
@@ -172,6 +174,7 @@ def predict_image_hybrid(
             "real_probability": patch_res["real_probability"],
             "patch_count": patch_res["patch_count"],
             "patch_fake_probs": patch_res.get("patch_fake_probs", []),
+            "patch_coordinates": patch_res.get("patch_coordinates", []),
             "max_patch_fake_prob": max_patch_fake,
             "top_k_patch_fake_prob": top_k_patch_fake
         },

@@ -11,6 +11,7 @@ from app.config import (
     PATCH_AGGREGATION_DEFAULT,
     PATCH_AGGREGATION_METHODS,
     MULTISCALE_FAKE_THRESHOLD,
+    MULTISCALE_TOP_K_RATIO,
 )
 from app.model_loader import load_model, resolve_model_device
 from app.diagnostics.entropy import interpret_confidence
@@ -88,8 +89,8 @@ def predict_image_patch_vote(
     lit_fake_probs = [fp for fp, lum in zip(fake_probs_list, patch_luminances) if lum >= lit_threshold]
     lit_patch_fake = float(np.mean(lit_fake_probs)) if lit_fake_probs else float(np.mean(fake_probs_list))
 
-    # Top-K (top 25% highest fake probability patches)
-    k_count = max(1, len(fake_probs_list) // 4)
+    # Top-K: use config-defined ratio (consistent with multiscale strategy)
+    k_count = max(1, int(round(len(fake_probs_list) * MULTISCALE_TOP_K_RATIO)))
     top_k_fake_probs = sorted(fake_probs_list, reverse=True)[:k_count]
     top_k_patch_fake = float(np.mean(top_k_fake_probs))
 
@@ -160,8 +161,6 @@ def predict_image_patch_vote(
         "confidence_info": interpret_confidence(confidence)
     }
     
-    # Store internal patch array strictly for Hybrid strategy to re-evaluate if needed
-    res["_patches"] = patches
     return validate_strategy_output(res, strategy_name="patch")
 
 

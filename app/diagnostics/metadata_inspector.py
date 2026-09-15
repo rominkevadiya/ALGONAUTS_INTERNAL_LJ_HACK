@@ -13,27 +13,51 @@ from PIL import Image, ExifTags
 
 
 KNOWN_AI_SIGNATURES = [
+    # Text-to-image diffusion
     "midjourney",
     "dall-e",
     "dalle",
     "stable diffusion",
     "stablediffusion",
+    "sdxl",
+    "flux.1",
+    "flux1",
+    # Commercial tools
     "adobe firefly",
     "firefly",
+    "canva",
+    "bing image creator",
+    "ideogram",
+    "wix photo studio",
+    "adobe express",
+    # Google generators
     "google imagen",
     "imagen",
-    "bing image creator",
+    "image fx",
+    "imagefx",
+    "gemini",
+    # Video / emerging
+    "sora",
+    "kling",
+    "runway",
+    "pika",
+    "lumiere",
+    "dream machine",
+    "grok",
+    # Metadata markers
     "c2pa",
     "generative ai",
     "generativeai",
+    "ai generated",
+    "ai-generated",
+    # Open-source tools
     "novelai",
     "leonardo.ai",
     "leonardo ai",
     "comfyui",
     "automatic1111",
-    "sdxl",
-    "flux.1",
-    "flux1"
+    "invokeai",
+    "fooocus",
 ]
 
 CAMERA_MANUFACTURERS = [
@@ -54,7 +78,9 @@ def extract_c2pa_generator(raw_bytes: bytes) -> Optional[str]:
         
     tmp_path = None
     try:
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".jpg") as tmp:
+        # Detect format from magic bytes (JPEG: FF D8 FF, PNG: 89 50 4E 47)
+        suffix = ".png" if raw_bytes[:4] == b"\x89PNG" else ".jpg"
+        with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
             tmp.write(raw_bytes)
             tmp_path = tmp.name
             
@@ -110,7 +136,9 @@ def inspect_image_metadata(
     camera_matched = None
     c2pa_detected = False
 
-    # Check filename patterns for social messenger camera uploads (WhatsApp, Telegram, Signal, DCIM)
+    # Check filename patterns for social messenger uploads (WhatsApp, Telegram, Signal, DCIM)
+    # NOTE: messenger apps frequently share AI-generated images, so this is UNVERIFIED
+    # (not CAMERA_REAL — a WhatsApp image is not proof of camera authenticity)
     messenger_matched = None
     if filename:
         fn_lower = filename.lower()
@@ -185,14 +213,10 @@ def inspect_image_metadata(
     # ------------------------------------------------------------------
     metadata_found = len(metadata_summary) > 0 or len(ai_matched_terms) > 0 or messenger_matched is not None
 
-    if camera_matched and not ai_matched_terms and not c2pa_detected:
-        provenance_verdict = "CAMERA_REAL"
-        source_identified = f"Camera Hardware EXIF ({camera_matched})"
-        status_message = f"Authentic Camera Metadata Verified ({camera_matched})"
-    elif ai_matched_terms:
+    if ai_matched_terms:
         provenance_verdict = "AI_GENERATED"
         source_identified = ai_matched_terms[0]
-        status_message = f"AI Provenance Verified ({source_identified})"
+        status_message = f"AI Provenance Detected ({source_identified})"
     elif c2pa_detected:
         provenance_verdict = "AI_GENERATED"
         generator_model = metadata_summary.get("C2PA Generator")
@@ -202,10 +226,19 @@ def inspect_image_metadata(
         else:
             source_identified = "C2PA Provenance Manifest"
             status_message = "C2PA Digital Content Credentials Manifest Detected"
-    elif messenger_matched and not ai_matched_terms:
+    elif camera_matched and not ai_matched_terms and not c2pa_detected:
+        # CAMERA_REAL is informational only — it does NOT bypass the PyTorch model.
+        # Camera EXIF can be present on AI-generated images saved on-device (e.g. Pixel Magic Eraser,
+        # Samsung AI, iPhone Clean Up). The neural network verdict always takes precedence.
         provenance_verdict = "CAMERA_REAL"
-        source_identified = f"User Camera Media ({messenger_matched})"
-        status_message = f"Authentic Media Upload Verified ({messenger_matched})"
+        source_identified = f"Camera Hardware EXIF ({camera_matched})"
+        status_message = f"Camera Metadata Detected ({camera_matched}) — Neural network still evaluates image content"
+    elif messenger_matched:
+        # Messenger filename patterns (WhatsApp, Telegram) are UNVERIFIED because
+        # these apps regularly forward AI-generated images shared by others.
+        provenance_verdict = "UNVERIFIED"
+        source_identified = f"Messenger Upload ({messenger_matched})"
+        status_message = f"Messenger Upload Detected ({messenger_matched}) — Cannot confirm camera authenticity"
     else:
         provenance_verdict = "UNVERIFIED"
         source_identified = None

@@ -1,9 +1,49 @@
 # SignalScope Deep Technical Audit Report
 
 **Repository Path:** `D:\ALGONAUTS_INTERNAL_LJ_HACK-main`  
-**Audit Date:** September 11, 2026  
+**Initial Audit Date:** September 11, 2026  
+**Improvement Audit Date:** September 15, 2026  
 **Auditor:** AI Systems Security & Engineering Auditor  
-**Audit Status:** **VERIFIED WITH ISSUES**
+**Audit Status:** **✅ VERIFIED — FIXES APPLIED (39/39 Tests Passing)**
+
+---
+
+## 0. Code Improvement Audit (September 15, 2026)
+
+Following the initial audit, a comprehensive code-level review was conducted and all identified issues were resolved **without retraining the model**.
+
+### Phase 1 — Critical Bug Fixes
+
+| # | File | Issue | Fix Applied | Severity |
+| :- | :--- | :---- | :---------- | :------: |
+| 1 | `hybrid_strategy.py` | Branch 1b hardcoded `hybrid_label = "REAL"` regardless of computed `hybrid_fake` probability (e.g. 0.83 → mislabeled REAL) | `hybrid_label = "FAKE" if hybrid_fake >= MULTISCALE_FAKE_THRESHOLD else "REAL"` | 🔴 HIGH |
+| 2 | `auto_strategy.py` | `multiscale` strategy never auto-routed — dead code in production (all images ≥256px routed to `hybrid`) | Added 4th tier: `≥ 512px → multiscale` | 🟠 MEDIUM |
+| 3 | `auto_strategy.py` | FFT computed for all images including resize/patch routes where it is unused (wasted CPU) | Moved FFT computation inside `if selected_mode in ("hybrid",):` branch | 🟡 LOW |
+| 4 | `auto_strategy.py` | `precomputed_metadata: Dict[str, Any] = None` — mutable default type annotation (not `Optional`) | Changed to `Optional[Dict[str, Any]] = None` | 🟡 LOW |
+| 5 | `model_loader.py` | `torch.load(..., weights_only=False)` allows arbitrary Python code execution from malicious `.pth` | Changed to `weights_only=True` with comprehensive `numpy.dtypes.*` allowlist | 🔴 HIGH |
+| 6 | `requirements.txt` | No version pins — fresh install may use incompatible packages | All 14 direct dependencies pinned to exact installed versions | 🟠 MEDIUM |
+
+### Phase 2 — Quality Improvements
+
+| # | File | Issue | Fix Applied |
+| :- | :--- | :---- | :---------- |
+| 7 | `gemini_gateway.py` | `_CACHE: Dict[str, str] = {}` grows unbounded in long sessions | Replaced with `OrderedDict` + 500-entry LRU eviction |
+| 8 | `patch_strategy.py` | Top-K ratio hardcoded as `// 4` (25%) vs config `MULTISCALE_TOP_K_RATIO=0.20` (20%) | Now uses `int(round(len(list) * MULTISCALE_TOP_K_RATIO))` |
+| 9 | `patch_strategy.py` | `res["_patches"] = patches` leaks internal PIL image array into public API result dict | Removed. Hybrid strategy recomputes patches independently |
+| 10 | `prompt_registry.py` | Generator attribution pre-assumed image is AI-generated (biased framing, only 6 models listed) | Neutral framing + expanded to 30+ generators + `is_ai_generated` field |
+| 11 | `prompt_registry.py` | Faithful explanation `max_output_tokens=180` causes mid-sentence truncation | Bumped to 300; richer diagnostic context passed (FFT, entropy, strategy, disagreement) |
+| 12 | `metadata_inspector.py` | `KNOWN_AI_SIGNATURES` missing 13 modern generators (Sora, Kling, Runway, Pika, Gemini, Ideogram, etc.) | Added 13 new signatures + categorized with comments |
+| 13 | `metadata_inspector.py` | Messenger filename pattern (WhatsApp, Telegram) yielded `CAMERA_REAL` — wrong (messengers share AI images) | Changed to `UNVERIFIED` with explanatory note |
+| 14 | `metadata_inspector.py` | `CAMERA_REAL` verdict bypassed PyTorch model (EXIF is spoofable, AI edits retain camera EXIF) | `CAMERA_REAL` now informational only; neural network verdict always used |
+| 15 | `metadata_inspector.py` | Temp file always written as `.jpg` even for PNG inputs → C2PA reader may fail | Added magic-byte detection: `b"\x89PNG"` → `.png`, else `.jpg` |
+
+### Verification Result
+
+```
+39 passed, 0 failed, 0 errors in 22.87s
+All 39 unit tests pass including: model loading, patch inference, multiscale,
+strategy registry, real-world stability, and backward compatibility tests.
+```
 
 ---
 
