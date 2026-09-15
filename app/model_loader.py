@@ -101,6 +101,17 @@ def _load_model_impl(target_path: Path) -> tuple[nn.Module, torch.device]:
     return model, device
 
 
+try:
+    import streamlit as st
+    HAS_STREAMLIT = True
+except ImportError:
+    HAS_STREAMLIT = False
+
+if HAS_STREAMLIT:
+    @st.cache_resource(show_spinner="Loading ResNet-50 SignalScope Model...")
+    def _cached_streamlit_loader(path_str: str):
+        return _load_model_impl(Path(path_str))
+
 def load_model(model_path: str | Path | None = None) -> tuple[nn.Module, torch.device]:
     """
     Loads the trained PyTorch model.
@@ -109,23 +120,14 @@ def load_model(model_path: str | Path | None = None) -> tuple[nn.Module, torch.d
     resolved_path = Path(model_path) if model_path else MODEL_PATH
 
     # Check if running within a Streamlit app context
-    try:
-        import streamlit as st
-
-        # Use Streamlit's cache_resource for thread-safe caching across app reruns
-        @st.cache_resource(show_spinner="Loading ResNet-50 SignalScope Model...")
-        def _cached_streamlit_loader(path_str: str):
-            return _load_model_impl(Path(path_str))
-
+    if HAS_STREAMLIT:
         return _cached_streamlit_loader(str(resolved_path))
-
-    except ImportError:
+    else:
         # Fallback to module-level caching for tests / scripts
         cache_key = str(resolved_path.resolve()) if resolved_path.exists() else str(resolved_path)
         if cache_key not in _LOADED_MODEL_CACHE:
             _LOADED_MODEL_CACHE[cache_key] = _load_model_impl(resolved_path)
         return _LOADED_MODEL_CACHE[cache_key]
-
 
 def resolve_model_device(model: torch.nn.Module | None = None, device: torch.device | None = None) -> tuple[torch.nn.Module, torch.device]:
     """

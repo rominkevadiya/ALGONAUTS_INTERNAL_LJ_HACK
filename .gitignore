@@ -63,3 +63,7 @@ ALGONAUTS_INTERNAL_LJ_HACK-main/
 # Large Model Weights (Keep primary model, ignore checkpoints)
 model_checkpoints/*.pth
 model_checkpoints/*.pt
+
+# Deployment and Secrets
+deploy_aws.py
+*.pem
