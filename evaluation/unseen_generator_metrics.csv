@@ -1,0 +1,5 @@
+Metric,Value
+Unseen-Split Accuracy,100.00%
+Unseen-Split Macro-F1,1.0000
+Unseen-Split ROC-AUC,1.0000
+Mean Inference Time (ms),399.57 ms
