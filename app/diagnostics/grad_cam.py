@@ -4,9 +4,22 @@ Generates a class-activation heatmap overlay explaining which regions of the
 32x32 model input most influenced the network's decision.
 """
 
+import threading
+
 import cv2
 import numpy as np
 from PIL import Image
+
+# app/model_loader.py caches the model process-wide via st.cache_resource, so every
+# Streamlit session/user thread shares the same nn.Module instance. Grad-CAM mutates
+# that shared model (flips requires_grad, runs backward(), accumulates .grad on every
+# parameter) — without serializing access, two concurrent Grad-CAM calls (two browser
+# tabs, two users) interleave their backward() calls on the same parameters and each
+# corrupts the other's gradients, producing a wrong/garbled heatmap despite each call's
+# own math being correct in isolation. One process-wide lock, mirroring the
+# threading.Lock already used for the same shared-resource reason in
+# app/api/gemini_gateway.py, makes Grad-CAM calls safe to run concurrently.
+_GRAD_CAM_LOCK = threading.Lock()
 
 
 class GradCAM:
@@ -177,34 +190,40 @@ def run_grad_cam(model, image: Image.Image, target_class: int | None = None) -> 
     from torchvision import transforms
     from app.config import IMAGENET_MEAN, IMAGENET_STD
 
-    target_layer = _select_target_layer(model)
-    grad_cam = GradCAM(model, target_layer)
-
     transform = transforms.Compose([
         transforms.Resize((32, 32)),  # Must match model's training size (CIFAKE is 32x32)
         transforms.ToTensor(),
         transforms.Normalize(IMAGENET_MEAN, IMAGENET_STD)
     ])
 
-    # We must ensure the model parameters require_grad for backward to work
-    original_requires_grad = {}
-    for name, param in model.named_parameters():
-        original_requires_grad[name] = param.requires_grad
-        param.requires_grad = True
+    with _GRAD_CAM_LOCK:
+        target_layer = _select_target_layer(model)
+        grad_cam = GradCAM(model, target_layer)
 
-    try:
-        input_tensor = transform(image.convert("RGB")).unsqueeze(0)
-        device = next(model.parameters()).device
-        input_tensor = input_tensor.to(device)
-
-        heatmap, _resolved_class = grad_cam.generate_heatmap(input_tensor, target_class)
-
-    finally:
-        # Clean up hooks
-        grad_cam.remove_hooks()
-
-        # Restore requires_grad
+        # We must ensure the model parameters require_grad for backward to work
+        original_requires_grad = {}
         for name, param in model.named_parameters():
-            param.requires_grad = original_requires_grad[name]
+            original_requires_grad[name] = param.requires_grad
+            param.requires_grad = True
+
+        try:
+            input_tensor = transform(image.convert("RGB")).unsqueeze(0)
+            device = next(model.parameters()).device
+            input_tensor = input_tensor.to(device)
+
+            heatmap, _resolved_class = grad_cam.generate_heatmap(input_tensor, target_class)
+
+        finally:
+            # Clean up hooks
+            grad_cam.remove_hooks()
+
+            # Restore requires_grad
+            for name, param in model.named_parameters():
+                param.requires_grad = original_requires_grad[name]
+
+            # Release the .grad tensors backward() left on every parameter now,
+            # rather than leaving ~90MB pinned on the shared cached model until
+            # the next Grad-CAM call happens to overwrite them.
+            model.zero_grad(set_to_none=True)
 
     return apply_colormap_on_image(image, heatmap)

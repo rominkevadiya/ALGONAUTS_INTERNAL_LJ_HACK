@@ -481,11 +481,22 @@ def main():
                         except Exception:
                             explanation_data = {"explanation": "Gemini explainer encountered an error.", "consistency_score": None, "consistency_note": "N/A"}
 
+                    with st.spinner("Generating Grad-CAM..."):
+                        from app.diagnostics.grad_cam import run_grad_cam
+                        try:
+                            cam_image = run_grad_cam(model, image)
+                        except Exception as e:
+                            st.session_state["cached_cam_error"] = str(e)
+                            cam_image = None
+
                     st.session_state["cached_res"] = res
                     st.session_state["cached_elapsed_ms"] = elapsed_ms
                     st.session_state["cached_attribution"] = attribution
                     st.session_state["cached_explanation"] = explanation_data
                     st.session_state["cached_regions"] = _regions
+                    st.session_state["cached_cam_image"] = cam_image
+                    if cam_image is not None:
+                        st.session_state.pop("cached_cam_error", None)
                     st.session_state["current_cache_key"] = analysis_cache_key
                     st.session_state["force_reanalyze"] = False
                 else:
@@ -494,6 +505,7 @@ def main():
                     attribution = st.session_state["cached_attribution"]
                     explanation_data = st.session_state["cached_explanation"]
                     _regions = st.session_state.get("cached_regions", [])
+                    cam_image = st.session_state.get("cached_cam_image")
 
                 label = res["label"]
                 conf = res["confidence"]
@@ -735,16 +747,23 @@ def main():
 
                         st.markdown("---")
                         st.caption("🔥 **ResNet-50 Grad-CAM Heatmap:** Visualizes network activation hotspots for the class the model actually predicted.")
-                        from app.diagnostics.grad_cam import run_grad_cam
-                        with st.spinner("Generating Grad-CAM..."):
-                            try:
-                                cam_image = run_grad_cam(model, image)
-                            except Exception as e:
-                                st.error(f"Grad-CAM generation failed: {e}")
-                                cam_image = None
-
-                        if cam_image:
+                        if cam_image is not None:
                             st.image(cam_image, caption="Grad-CAM Activation (heatmap resolution is inherently limited by the 32×32 ResNet stem input)", width="stretch")
+                        else:
+                            cam_error = st.session_state.get("cached_cam_error")
+                            if cam_error:
+                                st.error(f"Grad-CAM generation failed: {cam_error}")
+                            if st.button("🔄 Retry Grad-CAM", key="retry_cam_btn"):
+                                with st.spinner("Retrying Grad-CAM..."):
+                                    from app.diagnostics.grad_cam import run_grad_cam
+                                    try:
+                                        cam_image = run_grad_cam(model, image)
+                                        st.session_state.pop("cached_cam_error", None)
+                                    except Exception as e:
+                                        st.session_state["cached_cam_error"] = str(e)
+                                        cam_image = None
+                                    st.session_state["cached_cam_image"] = cam_image
+                                    st.rerun()
 
                         if caption_input:
                             st.markdown("---")
