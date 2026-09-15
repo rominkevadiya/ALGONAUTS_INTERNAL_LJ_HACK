@@ -94,7 +94,7 @@ Metrics were pulled directly from empirical testing (`evaluation/final_evaluatio
 ## 7. Links
 
 - **Live Deployed App URL**: [http://52.66.64.204:8501](http://52.66.64.204:8501)
-- **Demo Video**: [TODO: Insert YouTube/Drive Link]
+- **Demo Video**: https://drive.google.com/drive/folders/1B1tI9txvvubaSZSI0Awd5PhogTiATkae
 - **Deployment Notes**: Currently hosted on an AWS `t3.micro` EC2 instance with a 4GB Swap file to support PyTorch memory requirements.
 
 ## 8. Originality Declaration
