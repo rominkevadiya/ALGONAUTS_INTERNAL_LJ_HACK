@@ -593,7 +593,11 @@ def main():
                             st.write(f"**Provenance Verdict:** `{meta_data.get('provenance_verdict')}`")
                             st.write(f"**Source Identified:** `{meta_data.get('source_identified') or 'None'}`")
                         with m_col2:
-                            st.write(f"**C2PA Manifest Header:** `{'Detected' if meta_data.get('c2pa_manifest_detected') else 'Not Detected'}`")
+                            generator = meta_data.get('metadata_summary', {}).get('C2PA Generator')
+                            if generator:
+                                st.write(f"**C2PA Manifest Header:** `Detected ({generator})`")
+                            else:
+                                st.write(f"**C2PA Manifest Header:** `{'Detected' if meta_data.get('c2pa_manifest_detected') else 'Not Detected'}`")
                             st.write(f"**Camera Hardware:** `{meta_data.get('camera_matched') or 'None Detected'}`")
 
                         st.markdown("---")

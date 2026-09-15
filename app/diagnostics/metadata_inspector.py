@@ -6,6 +6,9 @@ AI generation metadata, and camera hardware tags before invoking deep learning m
 
 from typing import Dict, Any, Optional
 import io
+import json
+import os
+import tempfile
 from PIL import Image, ExifTags
 
 
@@ -38,6 +41,60 @@ CAMERA_MANUFACTURERS = [
     "olympus", "leica", "samsung", "google", "xiaomi", "oneplus",
     "huawei", "hasselblad", "pentax", "gopro"
 ]
+
+
+def extract_c2pa_generator(raw_bytes: bytes) -> Optional[str]:
+    """
+    Extracts the software agent or claim generator from a C2PA manifest.
+    """
+    try:
+        from c2pa import Reader
+    except ImportError:
+        return None
+        
+    tmp_path = None
+    try:
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".jpg") as tmp:
+            tmp.write(raw_bytes)
+            tmp_path = tmp.name
+            
+        with Reader.from_file(tmp_path) as reader:
+            manifest_json = reader.json()
+            if not manifest_json:
+                return None
+                
+            manifest_data = json.loads(manifest_json)
+            active_manifest = manifest_data.get("active_manifest")
+            if not active_manifest:
+                return None
+                
+            manifest_obj = manifest_data.get("manifests", {}).get(active_manifest, {})
+            assertions = manifest_obj.get("assertions", [])
+            
+            # Look for c2pa.actions assertion
+            for assertion in assertions:
+                if assertion.get("label", "").startswith("c2pa.actions"):
+                    actions = assertion.get("data", {}).get("actions", [])
+                    for action in actions:
+                        software_agent = action.get("softwareAgent")
+                        if software_agent:
+                            return software_agent
+            
+            # Fallback to claim_generator
+            claim_generator = manifest_obj.get("claim_generator")
+            if claim_generator:
+                return claim_generator
+                
+    except Exception:
+        pass
+    finally:
+        if tmp_path and os.path.exists(tmp_path):
+            try:
+                os.remove(tmp_path)
+            except Exception:
+                pass
+                
+    return None
 
 
 def inspect_image_metadata(
@@ -116,7 +173,12 @@ def inspect_image_metadata(
         # C2PA JUMBF specification requires 'jumb' followed by 'c2pa' claim signature box
         if b"jumbc2pa" in raw_bytes or b"c2pa.claim" in raw_bytes or b"c2pa.manifest" in raw_bytes:
             c2pa_detected = True
-            metadata_summary["C2PA Manifest"] = "Detected Verified JUMBF Digital Provenance Header"
+            
+            generator_model = extract_c2pa_generator(raw_bytes)
+            if generator_model:
+                metadata_summary["C2PA Generator"] = generator_model
+            else:
+                metadata_summary["C2PA Manifest"] = "Detected Verified JUMBF Digital Provenance Header"
 
     # ------------------------------------------------------------------
     # 4. Verdict Determination
@@ -133,8 +195,13 @@ def inspect_image_metadata(
         status_message = f"AI Provenance Verified ({source_identified})"
     elif c2pa_detected:
         provenance_verdict = "AI_GENERATED"
-        source_identified = "C2PA Provenance Manifest"
-        status_message = "C2PA Digital Content Credentials Manifest Detected"
+        generator_model = metadata_summary.get("C2PA Generator")
+        if generator_model:
+            source_identified = generator_model
+            status_message = f"C2PA Provenance Verified ({generator_model})"
+        else:
+            source_identified = "C2PA Provenance Manifest"
+            status_message = "C2PA Digital Content Credentials Manifest Detected"
     elif messenger_matched and not ai_matched_terms:
         provenance_verdict = "CAMERA_REAL"
         source_identified = f"User Camera Media ({messenger_matched})"
