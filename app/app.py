@@ -732,7 +732,19 @@ def main():
                                     )
                                     st.session_state["cached_explanation"] = explanation_data
                                     st.rerun()
-                        
+
+                        st.markdown("---")
+                        st.caption("🔥 **ResNet-50 Grad-CAM Heatmap:** Visualizes network activation hotspots for the class the model actually predicted.")
+                        from app.diagnostics.grad_cam import run_grad_cam
+                        with st.spinner("Generating Grad-CAM..."):
+                            try:
+                                cam_image = run_grad_cam(model, image)
+                            except Exception as e:
+                                st.error(f"Grad-CAM generation failed: {e}")
+                                cam_image = None
+
+                        if cam_image:
+                            st.image(cam_image, caption="Grad-CAM Activation (heatmap resolution is inherently limited by the 32×32 ResNet stem input)", width="stretch")
 
                         if caption_input:
                             st.markdown("---")
