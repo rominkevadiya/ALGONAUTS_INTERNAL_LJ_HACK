@@ -322,10 +322,7 @@ def main():
                 help="Upload an image to run live model inference."
             )
             
-            caption_input = st.text_area(
-                "Optional Caption / Claim",
-                help="If the image has a caption or claim (e.g. 'Handmade ceramic mug'), enter it here to test Multimodal Image+Text consistency."
-            )
+
 
             if uploaded_file is not None:
                 pre_meta = {}
@@ -421,7 +418,7 @@ def main():
             st.subheader("🎯 Inference & Diagnostic Output")
 
             if uploaded_file is not None and st.session_state.get("analyze_clicked", False):
-                analysis_cache_key = f"{uploaded_file.name}_{uploaded_file.size}_{selected_mode_key}_{patch_n_val}_{seed_val}_{aggregation_val}_{caption_input}"
+                analysis_cache_key = f"{uploaded_file.name}_{uploaded_file.size}_{selected_mode_key}_{patch_n_val}_{seed_val}_{aggregation_val}"
                 is_fresh_run = (st.session_state.get("current_cache_key") != analysis_cache_key) or st.session_state.get("force_reanalyze", False)
 
                 if is_fresh_run:
@@ -475,7 +472,7 @@ def main():
                                 image=_gemini_img,
                                 prediction_label=res["label"],
                                 regions=_regions,
-                                caption=caption_input if caption_input else None,
+
                                 diagnostic_context=res
                             )
                         except Exception:
@@ -683,20 +680,6 @@ def main():
                         else:
                             st.info("Hybrid comparison is available when running in 'Hybrid' mode.")
 
-                    # Sub-Tab 4: Experimental FFT Diagnostic
-                    with d_tab_expert:
-                        st.markdown('---')
-                        st.subheader('🌀 FFT Diagnostic')
-                        fft_data = res.get("fft_diagnostic", {})
-                        f_col1, f_col2 = st.columns(2)
-                        with f_col1:
-                            st.metric("Spectral Irregularity Score", f"{fft_data.get('spectral_score', 0.0):.4f}")
-                            st.write(f"**Diagnostic Label:** `{fft_data.get('diagnostic_label')}`")
-                        with f_col2:
-                            st.metric("High/Low Energy Ratio", f"{fft_data.get('high_to_low_ratio', 0.0):.4f}")
-                            st.metric("Spectral Slope", f"{fft_data.get('spectral_slope', 0.0):.4f}")
-
-                        st.warning(f"⚠️ **Experimental Diagnostic Note:** {fft_data.get('interpretation')}")
 
                     # Sub-Tab 5: Stage 1 Metadata & C2PA Provenance
                     with d_tab_expert:
@@ -739,7 +722,7 @@ def main():
                                         image=_g_img,
                                         prediction_label=label,
                                         regions=_regions,
-                                        caption=caption_input if caption_input else None,
+
                                         diagnostic_context=res
                                     )
                                     st.session_state["cached_explanation"] = explanation_data
@@ -765,13 +748,7 @@ def main():
                                     st.session_state["cached_cam_image"] = cam_image
                                     st.rerun()
 
-                        if caption_input:
-                            st.markdown("---")
-                            st.write("📝 **Multimodal Image-Text Consistency**")
-                            c_score = explanation_data.get('consistency_score')
-                            if c_score is not None:
-                                st.metric("Consistency Score (0 to 1)", f"{c_score:.2f}")
-                            st.write(f"**Note:** {explanation_data.get('consistency_note')}")
+
                             
                     # Sub-Tab 8: Live Degradation Test
                     with d_tab_robust:
