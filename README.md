@@ -4,6 +4,19 @@ SignalScope is a local inference application designed to screen images and class
 
 ---
 
+## 📑 Table of Contents
+- [Which Core + Bonus Modules Built](#-which-core--bonus-modules-built)
+- [Features & Multi-Strategy Capabilities](#-features--multi-strategy-inference-capabilities)
+- [Inference Modes & Usage Guide](#️-inference-modes--usage-guide)
+- [Model & Dataset Information](#-model--dataset-information)
+- [Benchmark Performance](#-benchmark-performance-verified-metrics)
+- [Technical Limitations](#️-important-technical-limitations--disclaimers)
+- [Project Structure](#-project-structure)
+- [Quick Start Guide](#-quick-start-guide)
+- [Demo Video](#-demo-video)
+
+---
+
 ## 📌 Which Core + Bonus Modules Built
 
 **Core Task (Completed):**
