@@ -24,7 +24,8 @@ except ImportError:
     types = None  # type: ignore[assignment]
 
 
-GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-flash-latest")
+DEFAULT_MODELS = ["gemini-3.1-flash-lite", "gemini-3.5-flash", "gemini-3.5-flash-lite"]
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.1-flash-lite")
 _LOGGER = logging.getLogger(__name__)
 _CLIENT: Any = None
 _CLIENT_LOCK = threading.Lock()
@@ -180,6 +181,7 @@ def _generate(*, task_id: str, prompt: str, image: Optional[Union[Image.Image, b
         config = types.GenerateContentConfig(**config_kwargs)
         response = None
         target_model = GEMINI_MODEL
+        candidates_pool = [target_model] + [m for m in DEFAULT_MODELS if m != target_model]
         for attempt in range(MAX_TRANSIENT_RETRIES + 1):
             while True:
                 locally_limited_for = _acquire_request_slot()
@@ -191,22 +193,25 @@ def _generate(*, task_id: str, prompt: str, image: Optional[Union[Image.Image, b
                 response = client.models.generate_content(model=target_model, contents=[image, prompt] if image is not None else prompt, config=config)
                 break
             except Exception as exc:
-                if "404" in str(exc) and target_model != "gemini-flash-latest":
-                    _LOGGER.info("Model '%s' not available (%s), falling back to 'gemini-flash-latest'.", target_model, exc)
-                    target_model = "gemini-flash-latest"
-                    continue
+                exc_str = str(exc).upper()
+                # If current model hits 404 or per-model quota exhaustion, fall back to next candidate model
+                if any(err in exc_str for err in ("404", "NOT_FOUND", "RESOURCE_EXHAUSTED", "QUOTA EXCEEDED")):
+                    remaining = [m for m in candidates_pool if m != target_model]
+                    if remaining:
+                        target_model = remaining[0]
+                        candidates_pool = remaining
+                        _LOGGER.info("Model '%s' failed, automatically falling back to '%s'.", target_model, remaining[0])
+                        continue
                 error = _error_code(exc)
                 retry_after = _retry_after_seconds(exc)
                 # A 429 can be retried only when the server asks for a short wait;
                 # longer waits are returned to the caller to avoid blocking Streamlit.
-                can_retry_rate_limit = error == "rate_limited" and retry_after is not None and retry_after <= MAX_RETRY_DELAY_SECONDS
+                can_retry_rate_limit = error == "rate_limited" and (retry_after is None or retry_after <= MAX_RETRY_DELAY_SECONDS)
                 can_retry_transient = error == "transient_api_failure"
                 if attempt >= MAX_TRANSIENT_RETRIES or not (can_retry_rate_limit or can_retry_transient):
                     _LOGGER.warning("Gemini request failed for task '%s' (%s).", task_id, error)
                     return _result(False, error=error, cache_miss=True, retry_after_seconds=retry_after)
-                delay = retry_after if can_retry_rate_limit else min(TRANSIENT_BACKOFF_SECONDS * (2 ** attempt), MAX_RETRY_DELAY_SECONDS)
-                # A retry is itself a request, so leave enough spacing for the
-                # local limiter as well as honouring the server's advice.
+                delay = retry_after if retry_after is not None else min(TRANSIENT_BACKOFF_SECONDS * (2 ** attempt), MAX_RETRY_DELAY_SECONDS)
                 delay = max(delay, MIN_REQUEST_INTERVAL_SECONDS)
                 _LOGGER.info("Retrying transient Gemini failure for task '%s' once after a bounded delay.", task_id)
                 time.sleep(delay)

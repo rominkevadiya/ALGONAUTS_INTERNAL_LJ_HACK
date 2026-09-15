@@ -306,6 +306,7 @@ def main():
                     st.markdown("<br>", unsafe_allow_html=True)
                     if st.button("🔎 Analyze Image", type="primary", width="stretch"):
                         st.session_state.analyze_clicked = True
+                        st.session_state.force_reanalyze = True
                 else:
                     st.session_state.analyze_clicked = False
             else:
@@ -316,70 +317,84 @@ def main():
             st.subheader("🎯 Inference & Diagnostic Output")
 
             if uploaded_file is not None and st.session_state.get("analyze_clicked", False):
-                mode_str = str(selected_mode_key or "auto").upper()
-                with st.spinner(f"Executing PyTorch inference ({mode_str} mode)..."):
-                    start_t = time.time()
+                analysis_cache_key = f"{uploaded_file.name}_{uploaded_file.size}_{selected_mode_key}_{patch_n_val}_{seed_val}_{aggregation_val}_{caption_input}"
+                is_fresh_run = (st.session_state.get("current_cache_key") != analysis_cache_key) or st.session_state.get("force_reanalyze", False)
 
-                    res = predict_image_auto(
-                        image,
-                        model=model,
-                        device=device,
-                        mode=selected_mode_key or "auto",
-                        n_patches=patch_n_val,
-                        seed=int(seed_val),
-                        aggregation=aggregation_val,
-                        precomputed_metadata=pre_meta
-                    )
-                    elapsed_ms = (time.time() - start_t) * 1000
+                if is_fresh_run:
+                    mode_str = str(selected_mode_key or "auto").upper()
+                    with st.spinner(f"Executing PyTorch inference ({mode_str} mode)..."):
+                        start_t = time.time()
+                        res = predict_image_auto(
+                            image,
+                            model=model,
+                            device=device,
+                            mode=selected_mode_key or "auto",
+                            n_patches=patch_n_val,
+                            seed=int(seed_val),
+                            aggregation=aggregation_val,
+                            precomputed_metadata=pre_meta
+                        )
+                        elapsed_ms = (time.time() - start_t) * 1000
 
-                # Attach metadata diagnostic if present
-                if "metadata_diagnostic" not in res:
-                    res["metadata_diagnostic"] = pre_meta
+                    if "metadata_diagnostic" not in res:
+                        res["metadata_diagnostic"] = pre_meta
 
+                    # Pre-compute regions for the explainer
+                    _analysis_data = res.get("analysis", {})
+                    _regions = _analysis_data.get("highlighted_regions", [])
+                    if not _regions and "patch_prediction" in res:
+                        _patch_p = res["patch_prediction"]
+                        _coords_list = _patch_p.get("patch_coordinates", [])
+                        _probs_list = _patch_p.get("patch_fake_probs", [])
+                        _regions = [
+                            {"x": c[0], "y": c[1], "width": c[2]-c[0], "height": c[3]-c[1], "fake_probability": p, "source": "patch_vote"}
+                            for c, p in zip(_coords_list, _probs_list) if p >= 0.50
+                        ]
+
+                    _gemini_img = image.copy()
+                    _gemini_img.thumbnail((512, 512))
+
+                    attribution = {"family": "Unknown", "specific_model": "Unknown", "confidence": 0.0, "note": "N/A"}
+                    if res["label"] == "FAKE" or res["fake_probability"] > 0.5:
+                        with st.spinner("Analyzing generator artifacts via Gemini Vision..."):
+                            try:
+                                from model.generator_attribution import predict_generator_attribution
+                                attribution = predict_generator_attribution(_gemini_img)
+                            except Exception:
+                                pass
+
+                    with st.spinner("Generating faithful explanation with Gemini Vision..."):
+                        from app.diagnostics.explainer import generate_faithful_explanation
+                        try:
+                            explanation_data = generate_faithful_explanation(
+                                image=_gemini_img,
+                                prediction_label=res["label"],
+                                regions=_regions,
+                                caption=caption_input if caption_input else None,
+                                diagnostic_context=res
+                            )
+                        except Exception:
+                            explanation_data = {"explanation": "Gemini explainer encountered an error.", "consistency_score": None, "consistency_note": "N/A"}
+
+                    st.session_state["cached_res"] = res
+                    st.session_state["cached_elapsed_ms"] = elapsed_ms
+                    st.session_state["cached_attribution"] = attribution
+                    st.session_state["cached_explanation"] = explanation_data
+                    st.session_state["cached_regions"] = _regions
+                    st.session_state["current_cache_key"] = analysis_cache_key
+                    st.session_state["force_reanalyze"] = False
+                else:
+                    res = st.session_state["cached_res"]
+                    elapsed_ms = st.session_state["cached_elapsed_ms"]
+                    attribution = st.session_state["cached_attribution"]
+                    explanation_data = st.session_state["cached_explanation"]
+                    _regions = st.session_state.get("cached_regions", [])
 
                 label = res["label"]
                 conf = res["confidence"]
                 fake_prob = res["fake_probability"]
                 real_prob = res["real_probability"]
                 active_mode = res.get("inference_mode", selected_mode_key)
-
-                from concurrent.futures import ThreadPoolExecutor
-                
-                # Pre-compute regions for the explainer since it's needed early for concurrency
-                _analysis_data = res.get("analysis", {})
-                _regions = _analysis_data.get("highlighted_regions", [])
-                if not _regions and "patch_prediction" in res:
-                    _patch_p = res["patch_prediction"]
-                    _coords_list = _patch_p.get("patch_coordinates", [])
-                    _probs_list = _patch_p.get("patch_fake_probs", [])
-                    _regions = [
-                        {"x": c[0], "y": c[1], "width": c[2]-c[0], "height": c[3]-c[1], "fake_probability": p, "source": "patch_vote"}
-                        for c, p in zip(_coords_list, _probs_list) if p >= 0.50
-                    ]
-
-                _gemini_executor = ThreadPoolExecutor(max_workers=2)
-                
-                # Resize image specifically for Gemini to drastically speed up network upload & processing
-                _gemini_img = image.copy()
-                _gemini_img.thumbnail((512, 512))
-
-                _future_attribution = None
-                if label == "FAKE" or fake_prob > 0.5:
-                    try:
-                        from model.generator_attribution import predict_generator_attribution
-                        _future_attribution = _gemini_executor.submit(predict_generator_attribution, _gemini_img)
-                    except ImportError:
-                        pass
-                
-                from app.diagnostics.explainer import generate_faithful_explanation
-                _future_explanation = _gemini_executor.submit(
-                    generate_faithful_explanation,
-                    image=_gemini_img,
-                    prediction_label=label,
-                    regions=_regions,
-                    caption=caption_input if caption_input else None,
-                    diagnostic_context=res
-                )
 
                 # Status Box Rendering
                 if active_mode == "metadata_provenance":
@@ -422,22 +437,22 @@ def main():
                 if label == "FAKE" or fake_prob > 0.5:
                     st.markdown("<br>", unsafe_allow_html=True)
                     st.subheader("🕵️‍♂️ Generator Attribution")
-                    with st.spinner("Analyzing artifacts to determine generator family..."):
-                        if _future_attribution is not None:
-                            try:
-                                attribution = _future_attribution.result(timeout=45)
-                                
-                                a_col1, a_col2 = st.columns(2)
-                                with a_col1:
-                                    st.metric("Likely Generator Family", attribution.get("family", "Unknown"))
-                                with a_col2:
-                                    st.metric("Specific Model", attribution.get("specific_model", "Unknown"))
-                                
-                                st.caption(f"**Attribution Note:** {attribution.get('note', '')}")
-                            except Exception as e:
-                                st.warning("Generator attribution encountered an error.")
-                        else:
-                            st.warning("Generator attribution module not found.")
+                    a_col1, a_col2 = st.columns(2)
+                    with a_col1:
+                        st.metric("Likely Generator Family", attribution.get("family", "Unknown"))
+                    with a_col2:
+                        st.metric("Specific Model", attribution.get("specific_model", "Unknown"))
+                    
+                    st.caption(f"**Attribution Note:** {attribution.get('note', '')}")
+                    if "rate limit" in str(attribution.get("note", "")).lower() or "unavailable" in str(attribution.get("note", "")).lower():
+                        if st.button("🔄 Retry Generator Attribution", key="retry_attr_btn"):
+                            with st.spinner("Retrying generator attribution via Gemini..."):
+                                from model.generator_attribution import predict_generator_attribution
+                                _g_img = image.copy()
+                                _g_img.thumbnail((512, 512))
+                                attribution = predict_generator_attribution(_g_img)
+                                st.session_state["cached_attribution"] = attribution
+                                st.rerun()
 
 
                 # Disclaimer
@@ -607,16 +622,22 @@ def main():
                     # Sub-Tab 7: Faithful Explanation (Gemini API)
                     with d_tab_verdict:
                         st.subheader("🤖 Faithful Explanation (Gemini Vision)")
-                        st.write("Generating a human-readable explanation for the visual cues behind the verdict...")
-                        
-                        from app.diagnostics.explainer import generate_faithful_explanation
-                        with st.spinner("Analyzing visual cues and multimodal consistency..."):
-                            try:
-                                explanation_data = _future_explanation.result(timeout=45)
-                            except Exception as e:
-                                explanation_data = {"explanation": "Gemini explainer encountered an error or timed out.", "consistency_score": None, "consistency_note": "N/A"}
-                        
                         st.markdown(f"**Explanation:**\n> {explanation_data.get('explanation')}")
+                        if "rate limit" in str(explanation_data.get("explanation", "")).lower() or "failed" in str(explanation_data.get("explanation", "")).lower():
+                            if st.button("🔄 Retry Gemini Explanation", key="retry_expl_btn"):
+                                with st.spinner("Retrying explanation via Gemini Vision..."):
+                                    from app.diagnostics.explainer import generate_faithful_explanation
+                                    _g_img = image.copy()
+                                    _g_img.thumbnail((512, 512))
+                                    explanation_data = generate_faithful_explanation(
+                                        image=_g_img,
+                                        prediction_label=label,
+                                        regions=_regions,
+                                        caption=caption_input if caption_input else None,
+                                        diagnostic_context=res
+                                    )
+                                    st.session_state["cached_explanation"] = explanation_data
+                                    st.rerun()
                         
                         st.markdown("---")
                         st.caption("🔥 **ResNet-50 Grad-CAM Heatmap:** Visualizes network activation hotspots for the FAKE class.")
