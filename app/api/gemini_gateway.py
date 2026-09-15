@@ -24,12 +24,8 @@ except ImportError:
     types = None  # type: ignore[assignment]
 
 
-<<<<<<< HEAD
 DEFAULT_MODELS = ["gemini-3.1-flash-lite", "gemini-3.5-flash", "gemini-3.5-flash-lite"]
 GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.1-flash-lite")
-=======
-GEMINI_MODEL = "gemini-2.5-flash"
->>>>>>> cd356e6 (Stabilize inference pipeline, make patch count deterministic, and fix localized patch false positives)
 _LOGGER = logging.getLogger(__name__)
 _CLIENT: Any = None
 _CLIENT_LOCK = threading.Lock()
@@ -174,17 +170,9 @@ def _generate(*, task_id: str, prompt: str, image: Optional[Union[Image.Image, b
         client = _get_client()
         if client is None:
             return _result(False, error="missing_api_key", cache_miss=True)
-<<<<<<< HEAD
         # Ensure adequate token budget and disable thinking overhead for fast (<4s) UI responses
         token_limit = max(max_output_tokens or 800, 800)
         config_kwargs: Dict[str, Any] = {"temperature": temperature, "max_output_tokens": token_limit}
-        if hasattr(types, "ThinkingConfig"):
-            try:
-                config_kwargs["thinking_config"] = types.ThinkingConfig(thinking_budget=0)
-            except Exception:
-                pass
-=======
-        config_kwargs: Dict[str, Any] = {"temperature": temperature, "max_output_tokens": max_output_tokens}
         if response_mime_type:
             config_kwargs["response_mime_type"] = response_mime_type
             
@@ -197,7 +185,11 @@ def _generate(*, task_id: str, prompt: str, image: Optional[Union[Image.Image, b
                 types.HarmCategory.HARM_CATEGORY_HARASSMENT,
             ]
         ]
->>>>>>> cd356e6 (Stabilize inference pipeline, make patch count deterministic, and fix localized patch false positives)
+        if hasattr(types, "ThinkingConfig"):
+            try:
+                config_kwargs["thinking_config"] = types.ThinkingConfig(thinking_budget=0)
+            except Exception:
+                pass
         config = types.GenerateContentConfig(**config_kwargs)
         response = None
         target_model = GEMINI_MODEL
@@ -210,17 +202,13 @@ def _generate(*, task_id: str, prompt: str, image: Optional[Union[Image.Image, b
                 _LOGGER.info("Gemini request deferred by the local rate limiter for task '%s'. Sleeping %.1fs.", task_id, locally_limited_for)
                 time.sleep(locally_limited_for)
             try:
-<<<<<<< HEAD
                 response = client.models.generate_content(model=target_model, contents=[image, prompt] if image is not None else prompt, config=config)
-=======
-                response = client.models.generate_content(model=GEMINI_MODEL, contents=[image, prompt] if image is not None else prompt, config=config)
                 try:
                     text = response.text
                 except ValueError:
                     text = None
                 if not isinstance(text, str) or not text.strip():
                     raise ValueError("MALFORMED_RESPONSE")
->>>>>>> cd356e6 (Stabilize inference pipeline, make patch count deterministic, and fix localized patch false positives)
                 break
             except Exception as exc:
                 exc_str = str(exc).upper()
@@ -234,12 +222,7 @@ def _generate(*, task_id: str, prompt: str, image: Optional[Union[Image.Image, b
                         continue
                 error = _error_code(exc)
                 retry_after = _retry_after_seconds(exc)
-<<<<<<< HEAD
-                # A 429 can be retried only when the server asks for a short wait;
-                # longer waits are returned to the caller to avoid blocking Streamlit.
-=======
                 # A 429 can be retried if it's not explicitly a very long wait
->>>>>>> cd356e6 (Stabilize inference pipeline, make patch count deterministic, and fix localized patch false positives)
                 can_retry_rate_limit = error == "rate_limited" and (retry_after is None or retry_after <= MAX_RETRY_DELAY_SECONDS)
                 can_retry_transient = error == "transient_api_failure"
                 if attempt >= MAX_TRANSIENT_RETRIES or not (can_retry_rate_limit or can_retry_transient):
