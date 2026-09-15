@@ -12,7 +12,8 @@ The frontend interface (`app/app.py`) is built using **Streamlit 1.63+**.
   - 🟠 **Amber Neutral Box**: Low confidence prediction ($< 70\%$).
 - **Live PyTorch Diagnostics**: Expandable panel displaying raw unrounded output logits ($z_0, z_1$), Softmax probability values, execution device type (`CPU` / `CUDA`), and forward pass timing in milliseconds.
 - **Batch Analysis & CSV Export**: Bulk file uploader allowing multiple image predictions and exporting results as `signalscope_batch_predictions.csv`.
-- **Model Caching**: Uses `@st.cache_resource` in `app/model_loader.py` to prevent reloading the 94.3 MB model checkpoint on UI reruns.
+- **Model & Session Caching**: Uses `@st.cache_resource` in `app/model_loader.py` to cache the 94.3 MB ResNet-50 checkpoint, and `st.session_state` in `app/app.py` to cache inference and Gemini multimodal responses per image. Tab switching, slider changes, and diagnostic inspection consume **0 additional API calls** and render with 0ms latency.
+- **On-Demand Retry Controls**: Dedicated "🔄 Retry" buttons in the UI for Generator Attribution and Faithful Explanation allow immediate recovery from transient rate limits without re-uploading the image.
 
 ---
 
@@ -104,5 +105,9 @@ pytest tests/test_predictor.py -v
 - **`grad_cam.py`**: Generates gradient-weighted class activation mapping (Grad-CAM) heatmaps to visualize ResNet focus.
 - **`model/generator_attribution.py`**: Uses Gemini API to deduce the exact generator family (e.g. Midjourney vs DALL-E) from visual artifacts.
 
+### `app/api/` (Centralized Gemini Integration)
+- **`gemini_gateway.py`**: Central gateway implementing default `gemini-3.1-flash-lite`, multi-model failover (`gemini-3.1-flash-lite` $\rightarrow$ `gemini-3.5-flash` $\rightarrow$ `gemini-3.5-flash-lite`), zero-thinking latency optimization (`thinking_budget=0`), thread-safe cache, local rate limiting, bounded 429 retries, and regex markdown code fence stripping.
+- **`prompt_registry.py`**: Versioned prompt definitions for Generator Attribution (Module B), Faithful Explanation (Module A), and Multimodal Caption Consistency (Module E).
+
 ### `app/app.py`
-- Streamlit application entry point implementing header, tabs, single-image preview, prediction visual boxes, live diagnostic logits expander, batch upload, and CSV downloads.
+- Streamlit application entry point implementing header, tabs, single-image preview, prediction visual boxes, live diagnostic logits expander, batch upload, and CSV downloads. Integrated with `st.session_state` smart caching and retry controls.

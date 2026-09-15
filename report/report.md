@@ -6,12 +6,12 @@
 ### 1. Task
 - **Core:** Binary real-vs-AI-generated image classification.
 - **Bonus Modules Attempted:** 
-  - A (Faithful Explanation): Human-readable textual explanations of visual cues via Gemini 2.5 API.
-  - B (Generator Attribution): Multi-class attribution (Diffusion vs GAN) via Gemini.
+  - A (Faithful Explanation): Human-readable textual explanations of visual cues via Gemini API (`gemini-3.1-flash-lite` with multi-model failover).
+  - B (Generator Attribution): Multi-class attribution (Diffusion vs GAN) via Gemini API.
   - C (Robustness to Degradation): Empirical analysis against JPEG compression and resizing.
   - D (Provenance & Metadata): C2PA / Content Credentials and EXIF pre-screening.
-  - E (Multimodal): Image-text consistency scoring via Gemini 2.5 API.
-  - F (Real-Time / Deployable): Streamlit Web UI with drag-and-drop & batch scanning.
+  - E (Multimodal): Image-text consistency scoring via Gemini API.
+  - F (Real-Time / Deployable): Streamlit Web UI with drag-and-drop, session caching, and batch scanning.
   - G (Active Defence Analysis): FGSM adversarial attack failure analysis.
 
 ### 2. Data & split

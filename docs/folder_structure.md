@@ -21,6 +21,11 @@ ALGONAUTS_INTERNAL_LJ_HACK-main/
 │   ├── model_loader.py                     # PyTorch checkpoint loader with caching
 │   ├── predictor.py                        # Facade API delegating to inference strategies
 │   │
+│   ├── api/                                # Gemini API gateway & prompt registry
+│   │   ├── __init__.py
+│   │   ├── gemini_gateway.py               # Gateway with multi-model failover & caching
+│   │   └── prompt_registry.py              # Versioned prompt contracts
+│   │
 │   ├── diagnostics/                        # Analytics modules
 │   │   ├── __init__.py
 │   │   ├── entropy.py                      # Shannon entropy calculations
