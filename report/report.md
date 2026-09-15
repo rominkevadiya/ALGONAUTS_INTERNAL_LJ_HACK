@@ -1,42 +1,14 @@
-# SignalScope - One Page Model Report
+# SignalScope — Model Report
 
-**Team:** ALGONAUTS (C-433)
-**Hackathon:** SIH - 2026
+*One-page model report per Submission Contract §7.3. All figures below are independently verified
+against `outputs/final_metrics.json` and match the checkpoint actually shipped in `model/best_resnet50_cifake_retrained.pth`
+(confirmed via exact validation-MCC fingerprint: 0.9334298702337789 at epoch 8).*
 
-### 1. Task
-- **Core:** Binary real-vs-AI-generated image classification.
-- **Bonus Modules Attempted:** 
-  - A (Faithful Explanation): Textual explanations of visual cues via Gemini API (`gemini-3.1-flash-lite` with multi-model failover).
-  - B (Generator Attribution): Precise model extraction (e.g., Adobe Firefly) via `c2pa-python` binary manifest decoding, plus multi-class attribution via Gemini API.
-  - C (Robustness to Degradation): High resilience to resizing and compression through `PATCH_N=32` stable patch consensus rather than global downscaling.
-  - D (Provenance & Metadata): Native byte scanning for C2PA `jumbc2pa` manifests, EXIF hardware tags, and Messenger artifacts.
-  - E (Multimodal): Image-caption consistency validation scoring via Gemini API.
-  - F (Real-Time / Deployable): Real-time Streamlit Web UI with responsible "Provenance Verdict" framing, drag-and-drop, and batch scanning.
-  - G (Active Defence Analysis): Thorough FGSM adversarial attack failure analysis and degradation testing.
-
-### 2. Data & split
-- **Core Training Data:** CIFAKE Dataset (MIT Licensed, ~100k+ labelled $32 \times 32$ images, balanced real/fake).
-- **Split:** 80k Train, 20k Validation, 20k Test (Original CIFAKE standard split). No additional public data was mixed during training.
-- **Evaluation:** Evaluated on both the standard CIFAKE test set and a synthetic mock dataset for "unseen generator" (Midjourney-style patterns).
-
-### 3. Model / approach
-- **Backbone:** ResNet-50 deep learning model, fine-tuned with a customized $32 \times 32$ input stem.
-- **Key Hyperparameters:** Fixed stability parameter `PATCH_N = 32` patches per image to prevent dynamic scaling noise. Patch Aggregation relies on a capped 70% confidence majority threshold.
-- **Augmentation & Robustness:** Implemented Test-Time Augmentation (TTA) with 8 geometrical/photometric views, and Native-Resolution Patch Voting to avoid downscaling destruction of AI artifacts.
-- **Calibration:** Uses Normalized Shannon Entropy to communicate prediction uncertainty.
-
-### 4. Metric & result
-*Note: Evaluated on the held-out test sets.*
-- **Overall AUC (CIFAKE):** 0.9980
-- **Unseen-Split AUC (Mock Dataset):** 1.0000 (Tested on evaluation/unseen_generator_metrics.csv)
-- **Macro-F1 (CIFAKE):** 0.9786
-- **Accuracy (CIFAKE):** 97.87%
-- **False-Positive Rate:** 2.14% at chosen threshold.
-- **Confusion Matrix:** True Positive: 9787, True Negative: 9786, False Positive: 214, False Negative: 213.
-
-### 5. Baseline
-The provided baseline model is expected to suffer heavily on the unseen-split. By using the Native Patch Voting + Hybrid Consensus (ResNet-50), our system filters out localized artifacts, preventing catastrophic failure on unseen generators. The Hybrid architecture specifically targets high-frequency synthetic generator patterns (verified by the experimental 2D FFT spectral diagnostics) giving a significant edge over standard global-resize baselines.
-
-### 6. Limitations
-- **Adversarial Vulnerability:** The model is highly susceptible to FGSM attacks (demonstrated in Active Defence Analysis); even a small $\epsilon=0.05$ causes a steep accuracy drop.
-- **Unseen Generator Caveat:** Though robust against minor perturbations, the ResNet-50 was solely trained on CIFAKE (Stable Diffusion 1.4 artifacts). Extremely modern generators (like FLUX or Midjourney v6) might bypass detection if they lack the specific localized frequency artifacts our patch-vote system looks for.
+| Field | Details |
+|---|---|
+| **Task** | Binary classification: real photo vs. AI-generated image. Confidence score output alongside FAKE/REAL label. Bonus modules attempted: **A** (explanation generation), **B** (generator-family attribution), **D** (C2PA/EXIF metadata provenance), **F** (deployed Streamlit interface). |
+| **Data & split** | CIFAKE dataset (real CIFAR-10 photos vs. Stable Diffusion v1.4 synthetic images), MIT/open-licensed. 120,000 images total — 80,000 train / 20,000 validation / 20,000 held-out test, fixed random seed, no overlap between splits. Core task uses only the organizer-provided data; no additional public datasets were added to training for this checkpoint. |
+| **Model / approach** | ResNet-50 backbone modified with a native 32×32 input stem (3×3 first convolution in place of the standard 7×7 ImageNet stem, since CIFAKE images are natively 32×32 — avoids upscaling artifacts). 23.56M parameters. ImageNet-statistics normalization. Trained 8 epochs; checkpoint selected at the epoch with peak validation MCC (0.9334), not final epoch, to avoid overfitting drift. Deployed inference supports multiple strategies (resize / native-patch voting / TTA / hybrid / auto-dispatch by resolution) for real-world images larger than 32×32. |
+| **Metric & result** | **Accuracy: 96.77%** · **Macro-F1: 0.9677** · **ROC-AUC: 0.9951** · **PR-AUC: 0.9951** (avg. precision) · **MCC: 0.9354**. At the validation-selected threshold (0.608): **False Positive Rate (real flagged as fake): 2.95%** (295/10,000), Sensitivity (fake caught): 96.49%, Specificity (real correctly cleared): 97.05%. Confusion matrix (test, n=20,000): TP=9,649, FN=351, FP=295, TN=9,705. **Unseen-generator-split AUC: not yet measured** — an earlier internal script claiming 100%/1.0 on an "unseen generator" set used procedurally-generated placeholder images (gradients vs. noise), not real outputs from a held-out generator, so that result has been withdrawn rather than reported here. |
+| **Baseline** | Organizer-provided baseline figures were not available to us at report time; this section will be completed once the baseline benchmark is published/shared. Our result should be read as a standalone number pending that comparison, with special attention to the unseen-generator split once we can measure it. |
+| **Limitations** | (1) Trained and evaluated only on CIFAKE (Stable Diffusion v1.4-era synthetic images at native 32×32) — no verified accuracy yet on modern generators (Midjourney v6, DALL·E 3, FLUX, Gemini image models, etc.), which is the core generalization risk this challenge is designed to surface. (2) A synthetic-image robustness test (JPEG/resize degradation) produced near-chance or 0% accuracy, indicating the model is likely fragile under real-world compression/resizing — genuine robustness has not been established and is flagged as a known gap rather than a strength. (3) Generator-family attribution (Bonus B) currently has no independently measured accuracy metric. (4) Multimodal image-text consistency (Bonus E) and adversarial/active-defence analysis (Bonus G) were not attempted in this submission. |
